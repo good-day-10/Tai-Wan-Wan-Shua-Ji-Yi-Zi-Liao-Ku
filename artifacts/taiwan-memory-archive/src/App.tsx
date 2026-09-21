@@ -446,7 +446,13 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
     selection.addRange(selectionRef.current);
   };
   const runCommand = (command: string, commandValue?: string) => {
-    restoreSelection();
+    // Toolbar buttons prevent their default mousedown so the browser keeps the
+    // current selection. Prefer that live range and only restore the backup
+    // when focus has already moved away from the editor.
+    saveSelection();
+    const selection = window.getSelection();
+    const hasSelectionInEditor = Boolean(selection?.rangeCount && element && element.contains(selection.anchorNode));
+    if (!hasSelectionInEditor) restoreSelection();
     document.execCommand(command, false, commandValue);
     if (element) onChange(sanitizeStoryHtml(element.innerHTML));
   };
