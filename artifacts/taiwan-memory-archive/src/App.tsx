@@ -745,6 +745,25 @@ function CustomPagesEditor({ pages, onChange }: { pages: CustomPage[]; onChange:
   </div>;
 }
 
+function UnsavedChangesDialog({ saving, onSave, onDiscard, onContinue }: { saving: boolean; onSave: () => void; onDiscard: () => void; onContinue: () => void }) {
+  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="presentation">
+    <div className="modal-panel w-full max-w-lg rounded-3xl bg-[hsl(var(--background))] p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="unsaved-changes-title">
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Eye size={20} /></div>
+        <div>
+          <h2 id="unsaved-changes-title" className="serif text-2xl font-bold">還有尚未保存的修改</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">你已經修改了文字或排版。離開編輯模式前，要如何處理這些修改？</p>
+        </div>
+      </div>
+      <div className="mt-7 grid gap-2 sm:flex sm:flex-row-reverse">
+        <button type="button" disabled={saving} onClick={onSave} className="btn-primary w-full justify-center px-4 py-3 text-sm disabled:cursor-wait disabled:opacity-60" data-testid="button-save-before-close">{saving ? '保存中…' : '保存並離開'}</button>
+        <button type="button" disabled={saving} onClick={onDiscard} className="btn-outline w-full justify-center px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-discard-before-close">放棄修改</button>
+        <button type="button" disabled={saving} onClick={onContinue} className="btn-ghost w-full justify-center px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-continue-editing">繼續編輯</button>
+      </div>
+    </div>
+  </div>;
+}
+
 function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -752,7 +771,43 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
   const [editorTab, setEditorTab] = useState<'memories' | 'page' | 'pages'>('memories');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pendingCloseAction, setPendingCloseAction] = useState<'cancel' | 'lock' | null>(null);
+  const hasUnsavedChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(archive), [archive, draft]);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+  const requestClose = (action: 'cancel' | 'lock') => {
+    if (!hasUnsavedChanges) {
+      (action === 'lock' ? onLock : onCancel)();
+      return;
+    }
+    setPendingCloseAction(action);
+  };
+  const continueEditing = () => setPendingCloseAction(null);
+  const discardChanges = () => {
+    const action = pendingCloseAction;
+    setPendingCloseAction(null);
+    (action === 'lock' ? onLock : onCancel)();
+  };
+  const saveDraft = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch {
+      // saveArchive reports the error and keeps the editor open
+    } finally {
+      setSaving(false);
+    }
+  };
   const updateSelected = (field: keyof Memory, value: string) => {
     if (!selectedId) return;
     setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, [field]: value } : memory) }));
@@ -780,7 +835,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
       <div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div>
-          <div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={async () => { setSaving(true); try { await onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); } catch { /* saveArchive reports the error and keeps the editor open */ } finally { setSaving(false); } }} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
+          <div className="flex gap-2"><button onClick={() => requestClose('cancel')} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={() => requestClose('lock')} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={saveDraft} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
         </div>
       </div>
       <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
@@ -810,6 +865,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
       </div>}
     </div>
     {showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /></button></div></div></div>}
+    {pendingCloseAction && <UnsavedChangesDialog saving={saving} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} />}
   </div>;
 }
 
