@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent,
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getArchive as getSharedArchive, getEditorStatus, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
-import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -48,6 +48,7 @@ type CustomPage = {
 
 type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
 type ArchiveData = { version?: string; introduction: string; memories: Memory[]; siteContent: SiteContent };
+type SharedArchiveStatus = 'loading' | 'ready' | 'error';
 
 const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TAIWAN PLAY MEMORIES', x: 0, y: 0, width: 100, align: 'left' },
@@ -275,9 +276,27 @@ function PageTextBlock({ block, className = '' }: { block: SiteTextBlock; classN
   return <div className={className} style={{ ...siteBlockStyle(block), width: `${Math.min(100, block.width)}%` }} dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(block.html) }} />;
 }
 
-function CustomPageView({ page, siteContent, onEdit }: { page: CustomPage; siteContent: SiteContent; onEdit: () => void }) {
+function SharedArchiveNotice({ status, onRetry }: { status: SharedArchiveStatus; onRetry: () => void }) {
+  if (status === 'ready') return null;
+  const isLoading = status === 'loading';
+  return <div className="relative z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]" role={isLoading ? 'status' : 'alert'} aria-live="polite">
+    <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 text-sm lg:px-8">
+      <div className="flex min-w-0 items-start gap-3">
+        {isLoading ? <LoaderCircle size={18} className="mt-0.5 shrink-0 animate-spin text-[hsl(var(--primary))]" aria-hidden="true" /> : <RefreshCw size={18} className="mt-0.5 shrink-0 text-[hsl(var(--secondary))]" aria-hidden="true" />}
+        <div className="min-w-0">
+          <p className="font-semibold text-[hsl(var(--foreground))]">{isLoading ? '正在同步共享資料' : '共享資料暫時無法載入'}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{isLoading ? '目前先顯示此裝置上的內容；同步完成後會自動更新。' : '目前畫面可能是此裝置保存的舊內容，尚未確認為最新版本。'}</p>
+        </div>
+      </div>
+      {!isLoading && <button type="button" onClick={onRetry} className="btn-outline shrink-0 px-3 py-2 text-xs" data-testid="button-retry-shared-archive"><RefreshCw size={14} />重新載入</button>}
+    </div>
+  </div>;
+}
+
+function CustomPageView({ page, siteContent, onEdit, sharedStatus, onRetry }: { page: CustomPage; siteContent: SiteContent; onEdit: () => void; sharedStatus: SharedArchiveStatus; onRetry: () => void }) {
   const safeBackground = page.backgroundImage?.startsWith('data:image/') ? page.backgroundImage : undefined;
   return <div className="archive-shell texture min-h-dvh">
+    <SharedArchiveNotice status={sharedStatus} onRetry={onRetry} />
     <Header siteContent={siteContent} />
     <main className="relative overflow-hidden">
       <section className="relative min-h-[75dvh] bg-[hsl(var(--primary))] bg-cover bg-center text-white" style={safeBackground ? { backgroundImage: `linear-gradient(hsl(202 42% 16% / .84), hsl(202 42% 16% / .92)), url("${safeBackground}")` } : undefined}>
@@ -876,6 +895,8 @@ function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: () 
 function Home() {
   const [location] = useLocation();
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
+  const [sharedStatus, setSharedStatus] = useState<SharedArchiveStatus>('loading');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [detail, setDetail] = useState<Memory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -885,12 +906,21 @@ function Home() {
       if (!active) return;
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
-      localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
+      try {
+        localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
+      } catch {
+        // The shared response is still authoritative when local storage is unavailable.
+      }
+      setSharedStatus('ready');
     }).catch(() => {
-      // A new project has no saved archive yet; seedData/localStorage remains the local fallback.
+      if (active) setSharedStatus('error');
     });
     return () => { active = false; };
-  }, []);
+  }, [loadAttempt]);
+  const retrySharedArchive = () => {
+    setSharedStatus('loading');
+    setLoadAttempt((attempt) => attempt + 1);
+  };
   const saveArchive = async (data: ArchiveData) => {
     try {
       const sharedArchive = await saveSharedArchive({
@@ -914,8 +944,8 @@ function Home() {
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</>;
-  return <div className="archive-shell texture"><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
+  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
 }
 
 function Router() {
