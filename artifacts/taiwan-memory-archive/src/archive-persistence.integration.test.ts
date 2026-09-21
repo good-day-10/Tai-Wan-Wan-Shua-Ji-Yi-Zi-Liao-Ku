@@ -302,3 +302,73 @@ test('stale archive versions are rejected without removing another editor page',
     });
   }
 });
+
+test('a failed save can retry the same draft after refreshing its version', { skip: !shouldRun }, async () => {
+  const original = await requestArchive();
+  const originalSiteContent = (original.siteContent ?? {}) as { blocks?: unknown[]; pages?: Array<Record<string, unknown>> };
+  const originalBlocks = Array.isArray(originalSiteContent.blocks) ? originalSiteContent.blocks : defaultSiteBlocks;
+  const originalPages = Array.isArray(originalSiteContent.pages) ? originalSiteContent.pages : [];
+  const uniqueSuffix = Date.now();
+  const firstPage = {
+    id: `retry-current-page-${uniqueSuffix}`,
+    title: '先被其他編輯者保存的頁面',
+    slug: `retry-current-page-${uniqueSuffix}`,
+    blocks: [],
+  };
+  const retryPage = {
+    id: `retry-draft-page-${uniqueSuffix}`,
+    title: '失敗後仍要保留的草稿',
+    slug: `retry-draft-page-${uniqueSuffix}`,
+    blocks: [],
+  };
+  const currentArchive = {
+    ...original,
+    siteContent: { blocks: originalBlocks, pages: [...originalPages, firstPage] },
+  };
+  const draftArchive = {
+    ...original,
+    siteContent: { blocks: originalBlocks, pages: [...originalPages, retryPage] },
+  };
+
+  try {
+    const firstSave = await requestArchiveWithStatus({
+      method: 'PUT',
+      body: JSON.stringify({ archive: currentArchive, expectedVersion: original.version }),
+    });
+    assert.equal(firstSave.response.ok, true, JSON.stringify(firstSave.body));
+
+    const failedSave = await requestArchiveWithStatus({
+      method: 'PUT',
+      body: JSON.stringify({ archive: draftArchive, expectedVersion: original.version }),
+    });
+    assert.equal(failedSave.response.status, 409, JSON.stringify(failedSave.body));
+
+    const latest = await requestArchive({ cache: 'no-store' });
+    const retriedArchive = {
+      ...draftArchive,
+      siteContent: { blocks: originalBlocks, pages: [...originalPages, firstPage, retryPage] },
+    };
+    const retried = await requestArchiveWithStatus({
+      method: 'PUT',
+      body: JSON.stringify({ archive: retriedArchive, expectedVersion: latest.version }),
+    });
+    assert.equal(retried.response.ok, true, JSON.stringify(retried.body));
+
+    const visitorRead = await requestArchive({ cache: 'no-store' });
+    const pages = ((visitorRead.siteContent as { pages?: Array<Record<string, unknown>> } | undefined)?.pages ?? []);
+    assert.deepEqual(pages.find((page) => page.id === firstPage.id), firstPage);
+    assert.deepEqual(pages.find((page) => page.id === retryPage.id), retryPage);
+  } finally {
+    const current = await requestArchive({ cache: 'no-store' });
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({
+        archive: {
+          ...original,
+          ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
+        },
+        expectedVersion: current.version,
+      }),
+    });
+  }
+});

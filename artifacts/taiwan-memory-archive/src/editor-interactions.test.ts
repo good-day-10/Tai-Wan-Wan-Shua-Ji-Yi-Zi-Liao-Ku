@@ -52,3 +52,15 @@ test('unsaved changes choices stay reachable on short mobile screens', async () 
   assert.match(cssSource, /\.unsaved-dialog-panel\s*\{[^}]*max-height:\s*calc\(100dvh - 2rem\)/);
   assert.match(cssSource, /\.unsaved-dialog-panel\s*\{[^}]*overflow-y:\s*auto/);
 });
+
+test('failed saves keep the draft and close choices available', async () => {
+  const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
+
+  assert.match(appSource, /const \[saveError, setSaveError\] = useState<string \| null>\(null\)/);
+  assert.match(appSource, /setSaveError\(null\);\s*try \{\s*await onSave\(draft\)/);
+  assert.match(appSource, /setSaveError\('保存失敗，這些修改仍保留在編輯器中。/);
+  assert.match(appSource, /data-testid="save-error-before-close"[^>]*role="alert"/);
+  assert.match(appSource, /pendingCloseAction && <UnsavedChangesDialog saving=\{saving\} error=\{saveError \?\? undefined\}/);
+  assert.match(appSource, /data-testid="save-error-editor"[^>]*role="alert"/);
+  assert.match(appSource, /finally \{\s*setSaving\(false\);\s*\}/);
+});

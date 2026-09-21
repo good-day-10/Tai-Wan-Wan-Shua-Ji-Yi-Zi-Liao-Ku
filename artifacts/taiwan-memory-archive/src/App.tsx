@@ -764,7 +764,7 @@ function CustomPagesEditor({ pages, onChange }: { pages: CustomPage[]; onChange:
   </div>;
 }
 
-function UnsavedChangesDialog({ saving, onSave, onDiscard, onContinue }: { saving: boolean; onSave: () => void; onDiscard: () => void; onContinue: () => void }) {
+function UnsavedChangesDialog({ saving, error, onSave, onDiscard, onContinue }: { saving: boolean; error?: string; onSave: () => void; onDiscard: () => void; onContinue: () => void }) {
   return <div className="unsaved-dialog-backdrop detail-backdrop fixed inset-0 z-50 flex items-center justify-center" role="presentation">
     <div className="unsaved-dialog-panel modal-panel w-full max-w-lg rounded-3xl bg-[hsl(var(--background))] p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="unsaved-changes-title" aria-describedby="unsaved-changes-description">
       <div className="flex items-start gap-4">
@@ -772,6 +772,7 @@ function UnsavedChangesDialog({ saving, onSave, onDiscard, onContinue }: { savin
         <div>
           <h2 id="unsaved-changes-title" className="serif text-2xl font-bold">還有尚未保存的修改</h2>
           <p id="unsaved-changes-description" className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">你已經修改了文字或排版。離開編輯模式前，要如何處理這些修改？</p>
+          {error && <p className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-before-close" role="alert">{error}</p>}
         </div>
       </div>
       <div className="mt-7 grid gap-2 sm:flex sm:flex-row-reverse">
@@ -790,6 +791,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
   const [editorTab, setEditorTab] = useState<'memories' | 'page' | 'pages'>('memories');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [pendingCloseAction, setPendingCloseAction] = useState<'cancel' | 'lock' | null>(null);
   const hasUnsavedChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(archive), [archive, draft]);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
@@ -817,12 +819,14 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
   };
   const saveDraft = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave(draft);
       setSaved(true);
       setTimeout(() => setSaved(false), 2200);
     } catch {
-      // saveArchive reports the error and keeps the editor open
+      // Keep both the draft and the close prompt so the user can retry or choose another action.
+      setSaveError('保存失敗，這些修改仍保留在編輯器中。你可以再次保存、放棄修改，或繼續編輯。');
     } finally {
       setSaving(false);
     }
@@ -856,6 +860,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
           <div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div>
           <div className="flex gap-2"><button onClick={() => requestClose('cancel')} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={() => requestClose('lock')} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={saveDraft} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
         </div>
+         {saveError && <p className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert">{saveError}</p>}
       </div>
       <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
       {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
@@ -884,7 +889,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
       </div>}
     </div>
     {showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /></button></div></div></div>}
-    {pendingCloseAction && <UnsavedChangesDialog saving={saving} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} />}
+    {pendingCloseAction && <UnsavedChangesDialog saving={saving} error={saveError ?? undefined} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} />}
   </div>;
 }
 
