@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getAuth } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, archiveTable } from "@workspace/db";
 import {
@@ -12,6 +12,7 @@ import {
 const router: IRouter = Router();
 const ARCHIVE_ID = "main";
 const EDITOR_PASSWORD = process.env.ARCHIVE_EDITOR_PASSWORD;
+const OWNER_EMAIL = process.env.ARCHIVE_OWNER_EMAIL?.trim().toLowerCase();
 const EDITOR_COOKIE = "archive_editor_access";
 const EDITOR_COOKIE_MAX_AGE = 60 * 60 * 1000;
 
@@ -27,6 +28,18 @@ function requireSignedIn(req: Request, res: Response, next: NextFunction): void 
 function hasEditorAccess(req: Request): boolean {
   const { userId } = getAuth(req);
   return Boolean(userId && req.signedCookies?.[EDITOR_COOKIE] === userId);
+}
+
+async function isOwner(req: Request): Promise<boolean> {
+  const { userId } = getAuth(req);
+  if (!userId || !OWNER_EMAIL) return false;
+
+  try {
+    const user = await clerkClient.users.getUser(userId);
+    return user.primaryEmailAddress?.emailAddress.trim().toLowerCase() === OWNER_EMAIL;
+  } catch {
+    return false;
+  }
 }
 
 router.get("/archive", async (_req, res): Promise<void> => {
@@ -54,19 +67,30 @@ router.get("/archive", async (_req, res): Promise<void> => {
   res.json(parsed.data);
 });
 
+router.get("/editor/status", async (req, res): Promise<void> => {
+  const { userId } = getAuth(req);
+  res.json({
+    authenticated: Boolean(userId),
+    owner: await isOwner(req),
+  });
+});
+
 router.post("/editor/unlock", requireSignedIn, async (req, res): Promise<void> => {
-  const parsed = UnlockEditorBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid editor credentials" });
-    return;
-  }
-  if (!EDITOR_PASSWORD) {
-    res.status(503).json({ error: "Editor access is not configured" });
-    return;
-  }
-  if (parsed.data.editorPassword !== EDITOR_PASSWORD) {
-    res.status(401).json({ error: "Invalid editor credentials" });
-    return;
+  const owner = await isOwner(req);
+  if (!owner) {
+    const parsed = UnlockEditorBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid editor credentials" });
+      return;
+    }
+    if (!EDITOR_PASSWORD) {
+      res.status(503).json({ error: "Editor access is not configured" });
+      return;
+    }
+    if (parsed.data.editorPassword !== EDITOR_PASSWORD) {
+      res.status(401).json({ error: "Invalid editor credentials" });
+      return;
+    }
   }
 
   const { userId } = getAuth(req);

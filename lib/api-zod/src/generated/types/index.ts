@@ -8,6 +8,7 @@
 
 export * from './archive';
 export * from './customPage';
+export * from './editorStatus';
 export * from './editorUnlockRequest';
 export * from './editorUnlockResponse';
 export * from './healthStatus';

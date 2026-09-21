@@ -85,6 +85,18 @@ paths:
           description: Authentication or editor credentials required
         "503":
           description: Editor access is not configured
+  /editor/status:
+    get:
+      operationId: getEditorStatus
+      tags: [archive]
+      summary: Check the current editor access role
+      responses:
+        "200":
+          description: Current authentication and owner status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorStatus"
 components:
   schemas:
     HealthStatus:
@@ -232,4 +244,14 @@ components:
           type: boolean
       required:
         - unlocked
+    EditorStatus:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        owner:
+          type: boolean
+      required:
+        - authenticated
+        - owner
 

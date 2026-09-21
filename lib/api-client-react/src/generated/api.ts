@@ -21,6 +21,7 @@ import type {
 
 import type {
   Archive,
+  EditorStatus,
   EditorUnlockRequest,
   EditorUnlockResponse,
   HealthStatus,
@@ -384,4 +385,81 @@ export const useUnlockEditor = <TError = ErrorType<void>,
       > => {
       return useMutation(getUnlockEditorMutationOptions(options));
     }
+
+export const getGetEditorStatusUrl = () => {
+
+
+
+
+  return `/api/editor/status`
+}
+
+/**
+ * @summary Check the current editor access role
+ */
+export const getEditorStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<EditorStatus> => {
+
+  return customFetch<EditorStatus>(getGetEditorStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEditorStatusQueryKey = () => {
+    return [
+    `/api/editor/status`
+    ] as const;
+    }
+
+
+export const getGetEditorStatusQueryOptions = <TData = Awaited<ReturnType<typeof getEditorStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEditorStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEditorStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEditorStatus>>> = ({ signal }) => getEditorStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEditorStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEditorStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getEditorStatus>>>
+export type GetEditorStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check the current editor access role
+ */
+
+export function useGetEditorStatus<TData = Awaited<ReturnType<typeof getEditorStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEditorStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEditorStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

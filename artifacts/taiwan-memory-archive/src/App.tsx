@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getArchive as getSharedArchive, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
+import { getArchive as getSharedArchive, getEditorStatus, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -243,7 +243,7 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
         <a href="#top" className="flex items-center gap-3" data-testid="link-home">
           <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]">
-            <BookOpen size={18} />
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-10 w-10 rounded-full object-cover" />
           </span>
           <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TAIWAN PLAY MEMORIES" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></span>
         </a>
@@ -373,14 +373,27 @@ function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: ()
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
   const { isLoaded, isSignedIn } = useAuth();
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  useEffect(() => {
+    let active = true;
+    getEditorStatus().then((status) => {
+      if (active) setIsOwner(status.owner);
+    }).catch(() => {
+      if (active) setIsOwner(false);
+    }).finally(() => {
+      if (active) setCheckingRole(false);
+    });
+    return () => { active = false; };
+  }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setError('');
     try {
-      await unlockEditor({ editorPassword: password });
+      await unlockEditor({ editorPassword: isOwner ? '' : password });
       onUnlock();
     } catch {
       setError('密碼錯誤，請再試一次。');
@@ -389,7 +402,7 @@ function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: ()
       setSubmitting(false);
     }
   };
-  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2>{!isLoaded ? <p className="mt-7 text-sm text-[hsl(var(--muted-foreground))]">正在確認登入狀態…</p> : !isSignedIn ? <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">請先登入資料庫帳號，登入後才能輸入編輯密碼。</p><a href={`${base}/sign-in`} className="btn-primary mt-6 w-full" data-testid="link-gate-sign-in">先登入再編輯 <ArrowRight size={16} /></a></> : <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">登入已確認。輸入編輯密碼後，即可整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" placeholder="請輸入編輯密碼" className="input-archive mt-2 text-center text-xl tracking-[.2em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" disabled={submitting || password.length === 0} className="btn-primary mt-5 w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-password">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button></form></>}<p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p></div></div>;
+  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2>{!isLoaded || checkingRole ? <p className="mt-7 text-sm text-[hsl(var(--muted-foreground))]">正在確認帳號權限…</p> : !isSignedIn ? <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">請先登入資料庫帳號，登入後才能進入編輯模式。</p><a href={`${base}/sign-in`} className="btn-primary mt-6 w-full" data-testid="link-gate-sign-in">先登入再編輯 <ArrowRight size={16} /></a></> : isOwner ? <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">已確認為資料庫擁有人，可以直接進入編輯模式。</p><form onSubmit={submit} className="mt-7"><button type="submit" disabled={submitting} className="btn-primary w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-owner-access">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button></form></> : <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">登入已確認。輸入編輯密碼後，即可整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" placeholder="請輸入編輯密碼" className="input-archive mt-2 text-center text-xl tracking-[.2em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" disabled={submitting || password.length === 0} className="btn-primary mt-5 w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-password">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button></form></>}<p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p></div></div>;
 }
 
 function imageToDataUrl(file: File): Promise<string> {
@@ -801,7 +814,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
 }
 
 function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: () => void }) {
-  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]"><BookOpen size={16} /></span><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href={`${import.meta.env.BASE_URL}#memories`} data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href={`${import.meta.env.BASE_URL}#about`} data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
+  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-9 w-9 rounded-full object-cover" /><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href={`${import.meta.env.BASE_URL}#memories`} data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href={`${import.meta.env.BASE_URL}#about`} data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
 }
 
 function Home() {

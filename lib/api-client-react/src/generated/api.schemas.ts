@@ -67,3 +67,8 @@ export interface EditorUnlockResponse {
   unlocked: boolean;
 }
 
+export interface EditorStatus {
+  authenticated: boolean;
+  owner: boolean;
+}
+

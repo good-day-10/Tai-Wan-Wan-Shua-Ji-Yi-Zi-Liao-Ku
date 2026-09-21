@@ -180,3 +180,12 @@ export const UnlockEditorResponse = zod.object({
 })
 
 
+/**
+ * @summary Check the current editor access role
+ */
+export const GetEditorStatusResponse = zod.object({
+  "authenticated": zod.boolean(),
+  "owner": zod.boolean()
+})
+
+
