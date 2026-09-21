@@ -17,7 +17,8 @@ async function requestArchive(options?: RequestInit): Promise<Record<string, unk
 
 test('saved page content is returned to separate visitor reads', { skip: !shouldRun }, async () => {
   const original = await requestArchive();
-  const originalBlocks = (original.siteContent as { blocks?: unknown[] } | undefined)?.blocks;
+  const originalSiteContent = (original.siteContent ?? {}) as { blocks?: unknown[]; pages?: unknown[] };
+  const originalBlocks = originalSiteContent.blocks;
   const startingBlocks = Array.isArray(originalBlocks) ? originalBlocks : defaultSiteBlocks;
 
   const updatedBlocks = (startingBlocks as Array<Record<string, unknown>>).map((block) => {
@@ -68,7 +69,92 @@ test('saved page content is returned to separate visitor reads', { skip: !should
       method: 'PUT',
       body: JSON.stringify({
         editorPassword: '00000',
-        archive: { ...original, ...(Array.isArray(originalBlocks) ? { siteContent: { blocks: originalBlocks } } : {}) },
+        archive: {
+          ...original,
+          ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
+        },
+      }),
+    });
+  }
+});
+
+test('saved custom pages remain available to visitors and disappear after deletion', { skip: !shouldRun }, async () => {
+  const original = await requestArchive();
+  const originalSiteContent = (original.siteContent ?? {}) as {
+    blocks?: unknown[];
+    pages?: Array<Record<string, unknown>>;
+  };
+  const originalBlocks = Array.isArray(originalSiteContent.blocks) ? originalSiteContent.blocks : defaultSiteBlocks;
+  const originalPages = Array.isArray(originalSiteContent.pages) ? originalSiteContent.pages : [];
+  const uniqueSuffix = Date.now();
+  const pageId = `integration-page-${uniqueSuffix}`;
+  const pageSlug = `integration-page-${uniqueSuffix}`;
+  const page = {
+    id: pageId,
+    title: '我們的理念',
+    slug: pageSlug,
+    backgroundImage: 'data:image/png;base64,ZmFrZS1iYWNrZ3JvdW5k',
+    blocks: [
+      {
+        id: `${pageId}.body`,
+        label: '頁面內容',
+        section: '頁面內容',
+        html: '<p><strong>一起保存遊戲記憶</strong>，讓故事被看見。</p>',
+        x: 18,
+        y: -11,
+        width: 72,
+        align: 'center',
+      },
+    ],
+  };
+  const archiveWithPage = {
+    ...original,
+    siteContent: {
+      blocks: originalBlocks,
+      pages: [...originalPages, page],
+    },
+  };
+
+  try {
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({ editorPassword: '00000', archive: archiveWithPage }),
+    });
+
+    const visitorReads = await Promise.all([
+      requestArchive({ cache: 'no-store' }),
+      requestArchive({ cache: 'no-store' }),
+    ]);
+    for (const visitorRead of visitorReads) {
+      const pages = ((visitorRead.siteContent as { pages?: Array<Record<string, unknown>> } | undefined)?.pages ?? []);
+      assert.deepEqual(pages.find((savedPage) => savedPage.id === pageId), page);
+    }
+
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({
+        editorPassword: '00000',
+        archive: {
+          ...original,
+          siteContent: {
+            blocks: originalBlocks,
+            pages: originalPages,
+          },
+        },
+      }),
+    });
+    const afterDeletion = await requestArchive({ cache: 'no-store' });
+    const pagesAfterDeletion = ((afterDeletion.siteContent as { pages?: Array<Record<string, unknown>> } | undefined)?.pages ?? []);
+    assert.equal(pagesAfterDeletion.some((savedPage) => savedPage.id === pageId || savedPage.slug === pageSlug), false);
+  } finally {
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({
+        editorPassword: '00000',
+        archive: {
+          ...original,
+          ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
+        },
       }),
     });
   }
