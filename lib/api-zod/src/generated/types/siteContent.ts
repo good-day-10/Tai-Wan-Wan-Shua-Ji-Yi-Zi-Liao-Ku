@@ -5,8 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CustomPage } from './customPage';
 import type { SiteTextBlock } from './siteTextBlock';
 
 export interface SiteContent {
   blocks: SiteTextBlock[];
+  pages?: CustomPage[];
 }

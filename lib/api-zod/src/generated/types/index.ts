@@ -7,6 +7,7 @@
  */
 
 export * from './archive';
+export * from './customPage';
 export * from './healthStatus';
 export * from './memory';
 export * from './saveArchiveRequest';

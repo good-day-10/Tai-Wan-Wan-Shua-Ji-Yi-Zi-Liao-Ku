@@ -36,8 +36,17 @@ export interface SiteTextBlock {
   align: string;
 }
 
+export interface CustomPage {
+  id: string;
+  title: string;
+  slug: string;
+  backgroundImage?: string;
+  blocks: SiteTextBlock[];
+}
+
 export interface SiteContent {
   blocks: SiteTextBlock[];
+  pages?: CustomPage[];
 }
 
 export interface Archive {

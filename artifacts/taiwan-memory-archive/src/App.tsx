@@ -35,7 +35,15 @@ type SiteTextBlock = {
   align: 'left' | 'center' | 'right';
 };
 
-type SiteContent = { blocks: SiteTextBlock[] };
+type CustomPage = {
+  id: string;
+  title: string;
+  slug: string;
+  backgroundImage?: string;
+  blocks: SiteTextBlock[];
+};
+
+type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
 type ArchiveData = { introduction: string; memories: Memory[]; siteContent: SiteContent };
 
 const defaultSiteBlocks: SiteTextBlock[] = [
@@ -90,21 +98,38 @@ const defaultSiteBlocks: SiteTextBlock[] = [
 ];
 
 function createDefaultSiteContent(): SiteContent {
-  return { blocks: defaultSiteBlocks.map((block) => ({ ...block })) };
+  return { blocks: defaultSiteBlocks.map((block) => ({ ...block })), pages: [] };
 }
 
 type SiteTextBlockInput = Omit<SiteTextBlock, 'align'> & { align: string };
+type CustomPageInput = { id: string; title: string; slug: string; backgroundImage?: string; blocks?: SiteTextBlockInput[] };
+type SiteContentInput = { blocks?: SiteTextBlockInput[]; pages?: CustomPageInput[] };
 
-function normalizeArchive(value: { memories: Memory[]; introduction: string; siteContent?: { blocks?: SiteTextBlockInput[] } }): ArchiveData {
-  const incoming = (value.siteContent?.blocks ?? []).map((block) => ({
+function normalizeBlocks(input: SiteTextBlockInput[] = []): SiteTextBlock[] {
+  return input.map((block) => ({
     ...block,
     align: block.align === 'center' || block.align === 'right' ? block.align : 'left',
   })) as SiteTextBlock[];
+}
+
+function normalizeSiteContent(input?: SiteContentInput): SiteContent {
+  const incoming = normalizeBlocks(input?.blocks);
   const byId = new Map(incoming.map((block) => [block.id, block]));
   const defaults = createDefaultSiteContent().blocks;
   const blocks = defaults.map((block) => ({ ...block, ...byId.get(block.id) }));
   incoming.filter((block) => !defaults.some((defaultBlock) => defaultBlock.id === block.id)).forEach((block) => blocks.push(block));
-  return { introduction: value.introduction, memories: value.memories, siteContent: { blocks } };
+  const pages = (input?.pages ?? []).map((page) => ({
+    id: page.id,
+    title: page.title,
+    slug: page.slug,
+    backgroundImage: page.backgroundImage,
+    blocks: normalizeBlocks(page.blocks),
+  }));
+  return { blocks, pages };
+}
+
+function normalizeArchive(value: { memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
+  return { introduction: value.introduction, memories: value.memories, siteContent: normalizeSiteContent(value.siteContent) };
 }
 
 const seedData: ArchiveData = {
@@ -207,6 +232,11 @@ function storyToPlainText(html: string): string {
   return (container.textContent ?? '').replace(/\u00a0/g, ' ').trim();
 }
 
+function customPageHref(slug: string): string {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${base}/page/${slug}`;
+}
+
 function Header({ siteContent }: { siteContent: SiteContent }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -218,18 +248,37 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
           </span>
           <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TAIWAN PLAY MEMORIES" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></span>
         </a>
-        <nav className="hidden items-center gap-8 md:flex" aria-label="主要導覽">
-          <a href="#memories" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a>
-          <a href="#about" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a>
-        </nav>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost md:hidden" aria-label="開啟導覽選單" aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost" aria-label={menuOpen ? '關閉導覽選單' : '開啟導覽選單'} aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
       </div>
-      {menuOpen && <nav className="flex flex-col gap-1 border-t border-white/10 px-5 pb-4 pt-2 md:hidden" aria-label="行動版導覽">
-        <a href="#memories" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a>
-        <a href="#about" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a>
+      {menuOpen && <nav className="absolute right-5 top-[76px] w-[min(360px,calc(100vw-2.5rem))] rounded-2xl border border-white/15 bg-[hsl(var(--primary)/.98)] p-3 shadow-2xl backdrop-blur" aria-label="網站導覽">
+        <p className="px-3 pb-2 pt-1 text-[10px] font-bold tracking-[.18em] text-[hsl(var(--accent))]">EXPLORE / 導覽</p>
+        <a href={`${import.meta.env.BASE_URL}#memories`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid="link-mobile-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /><ArrowRight size={15} className="text-white/40" /></a>
+        <a href={`${import.meta.env.BASE_URL}#about`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid="link-mobile-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /><ArrowRight size={15} className="text-white/40" /></a>
+        {siteContent.pages.length > 0 && <div className="my-2 border-t border-white/10 pt-2"><p className="px-3 pb-1 text-[10px] font-bold tracking-[.18em] text-white/40">PAGES / 自訂頁面</p>{siteContent.pages.map((page) => <a key={page.id} href={customPageHref(page.slug)} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid={`link-custom-page-${page.slug}`}><span className="flex min-w-0 items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--secondary))]" /><span className="truncate">{page.title}</span></span><ArrowRight size={15} className="text-white/40" /></a>)}</div>}
       </nav>}
     </header>
   );
+}
+
+function PageTextBlock({ block, className = '' }: { block: SiteTextBlock; className?: string }) {
+  return <div className={className} style={{ ...siteBlockStyle(block), width: `${Math.min(100, block.width)}%` }} dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(block.html) }} />;
+}
+
+function CustomPageView({ page, siteContent, onEdit }: { page: CustomPage; siteContent: SiteContent; onEdit: () => void }) {
+  const safeBackground = page.backgroundImage?.startsWith('data:image/') ? page.backgroundImage : undefined;
+  return <div className="archive-shell texture min-h-dvh">
+    <Header siteContent={siteContent} />
+    <main className="relative overflow-hidden">
+      <section className="relative min-h-[75dvh] bg-[hsl(var(--primary))] bg-cover bg-center text-white" style={safeBackground ? { backgroundImage: `linear-gradient(hsl(202 42% 16% / .84), hsl(202 42% 16% / .92)), url("${safeBackground}")` } : undefined}>
+        <div className="mx-auto max-w-5xl px-5 py-20 lg:px-8 lg:py-28">
+          <div className="mb-10 flex items-center gap-3 text-xs text-white/55"><a href={import.meta.env.BASE_URL} className="transition hover:text-white">首頁</a><ArrowRight size={13} /><span>{page.title}</span></div>
+          <h1 className="display-title max-w-3xl text-5xl font-black text-white sm:text-7xl">{page.title}</h1>
+          <div className="mt-12 space-y-7 rounded-3xl border border-white/15 bg-black/10 p-6 backdrop-blur-sm sm:p-10">{page.blocks.map((block) => <PageTextBlock key={block.id} block={block} className="text-base leading-loose text-white/85" />)}</div>
+        </div>
+      </section>
+    </main>
+    <Footer siteContent={siteContent} onEdit={onEdit} />
+  </div>;
 }
 
 function Hero({ introduction, siteContent, onExplore }: { introduction: string; siteContent: SiteContent; onExplore: () => void }) {
@@ -443,7 +492,7 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
 }
 
 function PageLayoutEditor({ siteContent, onChange }: { siteContent: SiteContent; onChange: (value: SiteContent) => void }) {
-  const sectionOrder = ['頁首', '主視覺', '記憶索引', '記憶卡片', '故事詳頁', '關於資料庫', '頁尾'];
+  const sectionOrder = ['頁首', '主視覺', '記憶索引', '記憶卡片', '故事詳頁', '關於資料庫', '頁尾', '頁面內容'];
   const sectionDescriptions: Record<string, string> = {
     頁首: '網站名稱與導覽',
     主視覺: '首頁第一個畫面',
@@ -452,6 +501,7 @@ function PageLayoutEditor({ siteContent, onChange }: { siteContent: SiteContent;
     故事詳頁: '故事詳情固定標籤',
     關於資料庫: '資料庫介紹區',
     頁尾: '頁尾與投稿入口',
+    頁面內容: '自訂頁面的文字區塊',
   };
   const [selectedId, setSelectedId] = useState(siteContent.blocks[0]?.id ?? '');
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -462,7 +512,7 @@ function PageLayoutEditor({ siteContent, onChange }: { siteContent: SiteContent;
     return result;
   }, {});
   const updateBlock = (id: string, patch: Partial<SiteTextBlock>) => {
-    onChange({ blocks: siteContent.blocks.map((block) => block.id === id ? { ...block, ...patch } : block) });
+    onChange({ ...siteContent, blocks: siteContent.blocks.map((block) => block.id === id ? { ...block, ...patch } : block) });
   };
   const updateSelected = (patch: Partial<SiteTextBlock>) => {
     if (selected) updateBlock(selected.id, patch);
@@ -532,7 +582,7 @@ function LegacyPageLayoutEditor({ siteContent, onChange }: { siteContent: SiteCo
   }, {});
   const updateSelected = (patch: Partial<SiteTextBlock>) => {
     if (!selected) return;
-    onChange({ blocks: siteContent.blocks.map((block) => block.id === selected.id ? { ...block, ...patch } : block) });
+    onChange({ ...siteContent, blocks: siteContent.blocks.map((block) => block.id === selected.id ? { ...block, ...patch } : block) });
   };
   const updatePositionFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragRef.current || !selected) return;
@@ -585,11 +635,69 @@ function CardColorPicker({ value, onChange }: { value: string; onChange: (value:
   </div>;
 }
 
+function PageBackgroundField({ value, onChange }: { value?: string; onChange: (value?: string) => void }) {
+  const [error, setError] = useState('');
+  const handleChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('請選擇圖片檔案。');
+      return;
+    }
+    try {
+      setError('');
+      onChange(await imageToDataUrl(file));
+    } catch {
+      setError('圖片讀取失敗，請換一張圖片再試一次。');
+    }
+  };
+  return <div className="mt-5 rounded-2xl border border-dashed border-[hsl(var(--border))] p-4">
+    <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">頁面背景圖片</p><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">背景只套用在這個自訂頁面。</p></div><label className="btn-outline cursor-pointer px-3 py-2 text-xs"><ImagePlus size={14} />{value ? '更換圖片' : '上傳圖片'}<input type="file" accept="image/*" onChange={handleChange} className="sr-only" /></label></div>
+    {value ? <div className="relative mt-4 overflow-hidden rounded-xl"><img src={value} alt="頁面背景預覽" className="h-28 w-full object-cover" /><button type="button" onClick={() => onChange(undefined)} className="absolute right-2 top-2 rounded-lg bg-black/60 px-2 py-1 text-xs text-white">移除</button></div> : <div className="mt-4 rounded-xl bg-[hsl(var(--muted))] px-4 py-5 text-center text-xs text-[hsl(var(--muted-foreground))]">目前使用主題底色</div>}
+    {error && <p className="mt-2 text-xs text-[hsl(var(--destructive))]" role="alert">{error}</p>}
+  </div>;
+}
+
+function CustomPagesEditor({ pages, onChange }: { pages: CustomPage[]; onChange: (pages: CustomPage[]) => void }) {
+  const [selectedId, setSelectedId] = useState<string | null>(pages[0]?.id ?? null);
+  const selected = pages.find((page) => page.id === selectedId) ?? pages[0];
+  const updatePage = (patch: Partial<CustomPage>) => {
+    if (!selected) return;
+    onChange(pages.map((page) => page.id === selected.id ? { ...page, ...patch } : page));
+  };
+  const addPage = () => {
+    const id = `page-${Date.now()}`;
+    const page: CustomPage = {
+      id,
+      title: '新的主題',
+      slug: id,
+      blocks: [{ id: `${id}.body`, label: '頁面內容', section: '頁面內容', html: '<p>在這裡寫下新的主題內容。</p>', x: 0, y: 0, width: 100, align: 'left' }],
+    };
+    onChange([...pages, page]);
+    setSelectedId(id);
+  };
+  const removePage = () => {
+    if (!selected || !window.confirm(`確定要刪除「${selected.title}」嗎？保存後這個頁面和導覽連結都會移除。`)) return;
+    const remaining = pages.filter((page) => page.id !== selected.id);
+    onChange(remaining);
+    setSelectedId(remaining[0]?.id ?? null);
+  };
+  return <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <aside className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+      <div className="flex items-start justify-between gap-3"><div><p className="eyebrow text-[hsl(var(--primary))]">SITE PAGES / 網站頁面</p><h2 className="serif mt-2 text-2xl font-bold">自訂主題</h2></div><button type="button" onClick={addPage} className="btn-primary px-3 py-2 text-xs"><Plus size={14} />新增</button></div>
+      <p className="mt-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">新增的主題會自動出現在右上角三條線的選單，點擊後會開啟獨立頁面。</p>
+      <div className="mt-5 space-y-1">{pages.length ? pages.map((page) => <button key={page.id} type="button" onClick={() => setSelectedId(page.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ${selected?.id === page.id ? 'bg-[hsl(var(--primary))] text-white' : 'hover:bg-[hsl(var(--muted))]'}`}><span className="h-8 w-8 shrink-0 rounded-lg bg-[hsl(var(--secondary)/.2)]" style={page.backgroundImage ? { backgroundImage: `url("${page.backgroundImage}")`, backgroundSize: 'cover' } : undefined} /><span className="min-w-0 truncate text-sm font-semibold">{page.title}</span></button>) : <div className="rounded-xl bg-[hsl(var(--muted))] px-3 py-4 text-center text-xs text-[hsl(var(--muted-foreground))]">還沒有自訂頁面</div>}</div>
+    </aside>
+    {selected ? <main className="min-w-0"><div className="mb-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="eyebrow text-[hsl(var(--primary))]">PAGE SETTINGS / 頁面設定</p><h2 className="serif mt-2 text-3xl font-bold">{selected.title}</h2></div><button type="button" onClick={removePage} className="btn-ghost text-[hsl(var(--destructive))]"><Trash2 size={16} />刪除頁面</button></div><label className="mt-5 block text-sm font-semibold">選單顯示名稱<input value={selected.title} onChange={(event) => updatePage({ title: event.target.value })} className="input-archive mt-2" placeholder="例如：我們的理念" /></label><p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">頁面網址：/page/{selected.slug}</p><PageBackgroundField value={selected.backgroundImage} onChange={(backgroundImage) => updatePage({ backgroundImage })} /></div><PageLayoutEditor key={selected.id} siteContent={{ blocks: selected.blocks, pages: [] }} onChange={(content) => updatePage({ blocks: content.blocks })} /></main> : <main className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><LayoutTemplate className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">建立第一個自訂主題</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">例如「我們的理念」、「參與方式」或「合作夥伴」。</p><button type="button" onClick={addPage} className="btn-primary mt-5"><Plus size={15} />建立頁面</button></div></main>}
+  </div>;
+}
+
 function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [editorTab, setEditorTab] = useState<'memories' | 'page'>('memories');
+  const [editorTab, setEditorTab] = useState<'memories' | 'page' | 'pages'>('memories');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
@@ -623,8 +731,8 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
           <div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={async () => { setSaving(true); try { await onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); } catch { /* saveArchive reports the error and keeps the editor open */ } finally { setSaving(false); } }} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
         </div>
       </div>
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />頁面文字與排版</button></div>
-      {editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
+      {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
         <aside>
           <div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]">
             <p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2>
@@ -654,10 +762,11 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
 }
 
 function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: () => void }) {
-  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]"><BookOpen size={16} /></span><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href="#memories" data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href="#about" data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
+  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]"><BookOpen size={16} /></span><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href={`${import.meta.env.BASE_URL}#memories`} data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href={`${import.meta.env.BASE_URL}#about`} data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
 }
 
 function Home() {
+  const [location] = useLocation();
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
   const [detail, setDetail] = useState<Memory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
@@ -687,11 +796,15 @@ function Home() {
     }
   };
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
+  const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
+  const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
+  if (pageSlug && !activePage) return <NotFound />;
+  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</>;
   return <div className="archive-shell texture"><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
 }
 
 function Router() {
-  return <ErrorBoundary><Switch><Route path="/" component={Home} /><Route component={NotFound} /></Switch></ErrorBoundary>;
+  return <ErrorBoundary><Switch><Route path="/" component={Home} /><Route path="/page/:slug" component={Home} /><Route component={NotFound} /></Switch></ErrorBoundary>;
 }
 
 function App() {

@@ -161,7 +161,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SiteTextBlock"
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomPage"
       required:
+        - blocks
+    CustomPage:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        backgroundImage:
+          type: string
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SiteTextBlock"
+      required:
+        - id
+        - title
+        - slug
         - blocks
     SaveArchiveRequest:
       type: object
