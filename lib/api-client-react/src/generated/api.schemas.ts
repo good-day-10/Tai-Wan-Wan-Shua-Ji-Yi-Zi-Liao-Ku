@@ -50,8 +50,11 @@ export interface SiteContent {
 }
 
 export interface Archive {
-  /** Server version used for optimistic concurrency checks */
-  version?: string;
+  /**
+     * Monotonically increasing server revision used for optimistic concurrency checks
+     * @minimum 1
+     */
+  version?: number;
   introduction: string;
   memories: Memory[];
   siteContent?: SiteContent;
@@ -59,8 +62,11 @@ export interface Archive {
 
 export interface SaveArchiveRequest {
   archive: Archive;
-  /** Version read by the editor before it started editing */
-  expectedVersion?: string;
+  /**
+     * Server revision read by the editor before it started editing
+     * @minimum 1
+     */
+  expectedVersion?: number;
 }
 
 export interface EditorUnlockRequest {

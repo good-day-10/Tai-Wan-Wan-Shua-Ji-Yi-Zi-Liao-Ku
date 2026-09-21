@@ -154,8 +154,10 @@ components:
       type: object
       properties:
         version:
-          type: string
-          description: Server version used for optimistic concurrency checks
+          type: integer
+          format: int32
+          minimum: 1
+          description: Monotonically increasing server revision used for optimistic concurrency checks
         introduction:
           type: string
         memories:
@@ -234,8 +236,10 @@ components:
         archive:
           $ref: "#/components/schemas/Archive"
         expectedVersion:
-          type: string
-          description: Version read by the editor before it started editing
+          type: integer
+          format: int32
+          minimum: 1
+          description: Server revision read by the editor before it started editing
       required:
         - archive
     EditorUnlockRequest:

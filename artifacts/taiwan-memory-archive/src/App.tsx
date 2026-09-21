@@ -47,7 +47,7 @@ type CustomPage = {
 };
 
 type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
-type ArchiveData = { version?: string; introduction: string; memories: Memory[]; siteContent: SiteContent };
+type ArchiveData = { version?: number; introduction: string; memories: Memory[]; siteContent: SiteContent };
 type SharedArchiveStatus = 'loading' | 'ready' | 'error';
 
 function isArchiveConflictError(error: unknown): boolean {
@@ -142,7 +142,7 @@ function normalizeSiteContent(input?: SiteContentInput): SiteContent {
   return { ...normalized, pages };
 }
 
-function normalizeArchive(value: { version?: string; memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
+function normalizeArchive(value: { version?: number; memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
   return { version: value.version, introduction: value.introduction, memories: value.memories, siteContent: normalizeSiteContent(value.siteContent) };
 }
 
@@ -981,7 +981,7 @@ function Home() {
     try {
       const sharedArchive = await saveSharedArchive({
         archive: data,
-        ...(data.version ? { expectedVersion: data.version } : {}),
+        ...(data.version !== undefined ? { expectedVersion: data.version } : {}),
       });
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);

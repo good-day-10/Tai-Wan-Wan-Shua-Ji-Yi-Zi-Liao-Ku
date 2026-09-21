@@ -20,8 +20,11 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Get the shared memory archive
  */
+
+
+
 export const GetArchiveResponse = zod.object({
-  "version": zod.string().optional().describe('Server version used for optimistic concurrency checks'),
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
   "introduction": zod.string(),
   "memories": zod.array(zod.object({
   "id": zod.string(),
@@ -72,9 +75,13 @@ export const GetArchiveResponse = zod.object({
 /**
  * @summary Save the shared memory archive
  */
+
+
+
+
 export const SaveArchiveBody = zod.object({
   "archive": zod.object({
-  "version": zod.string().optional().describe('Server version used for optimistic concurrency checks'),
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
   "introduction": zod.string(),
   "memories": zod.array(zod.object({
   "id": zod.string(),
@@ -120,11 +127,14 @@ export const SaveArchiveBody = zod.object({
 })).optional()
 }).optional()
 }),
-  "expectedVersion": zod.string().optional().describe('Version read by the editor before it started editing')
+  "expectedVersion": zod.number().int().min(1).optional().describe('Server revision read by the editor before it started editing')
 })
 
+
+
+
 export const SaveArchiveResponse = zod.object({
-  "version": zod.string().optional().describe('Server version used for optimistic concurrency checks'),
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
   "introduction": zod.string(),
   "memories": zod.array(zod.object({
   "id": zod.string(),

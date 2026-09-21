@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { clerkClient, getAuth } from "@clerk/express";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, archiveTable } from "@workspace/db";
@@ -55,7 +55,7 @@ router.get("/archive", async (_req, res): Promise<void> => {
   }
 
   const parsed = GetArchiveResponse.safeParse({
-    version: archive.updatedAt.toISOString(),
+    version: archive.revision,
     introduction: archive.introduction,
     memories: archive.memories,
     siteContent: archive.siteContent ?? undefined,
@@ -124,32 +124,27 @@ router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
 
   const { archive, expectedVersion } = parsed.data;
   const [current] = await db
-    .select({ updatedAt: archiveTable.updatedAt })
+    .select({ revision: archiveTable.revision })
     .from(archiveTable)
     .where(eq(archiveTable.id, ARCHIVE_ID))
     .limit(1);
 
-  if (current && !expectedVersion) {
+  if (current && expectedVersion === undefined) {
     res.status(409).json({ error: "Archive version is required; reload before saving" });
     return;
   }
 
-  if (current && expectedVersion) {
-    const expectedDate = new Date(expectedVersion);
-    if (Number.isNaN(expectedDate.getTime())) {
-      res.status(400).json({ error: "Invalid archive version" });
-      return;
-    }
-
+  if (current && expectedVersion !== undefined) {
     const [updated] = await db
       .update(archiveTable)
       .set({
         introduction: archive.introduction,
         memories: archive.memories,
         siteContent: archive.siteContent ?? null,
+        revision: sql<number>`${archiveTable.revision} + 1`,
         updatedAt: new Date(),
       })
-      .where(and(eq(archiveTable.id, ARCHIVE_ID), eq(archiveTable.updatedAt, expectedDate)))
+      .where(and(eq(archiveTable.id, ARCHIVE_ID), eq(archiveTable.revision, expectedVersion)))
       .returning();
 
     if (!updated) {
@@ -158,7 +153,7 @@ router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
     }
 
     res.json(SaveArchiveResponse.parse({
-      version: updated.updatedAt.toISOString(),
+      version: updated.revision,
       introduction: updated.introduction,
       memories: updated.memories,
       siteContent: updated.siteContent ?? undefined,
@@ -183,7 +178,7 @@ router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
   }
 
   res.json(SaveArchiveResponse.parse({
-    version: inserted.updatedAt.toISOString(),
+    version: inserted.revision,
     introduction: inserted.introduction,
     memories: inserted.memories,
     siteContent: inserted.siteContent ?? undefined,

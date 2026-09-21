@@ -9,8 +9,11 @@ import type { Memory } from './memory';
 import type { SiteContent } from './siteContent';
 
 export interface Archive {
-  /** Server version used for optimistic concurrency checks */
-  version?: string;
+  /**
+     * Monotonically increasing server revision used for optimistic concurrency checks
+     * @minimum 1
+     */
+  version?: number;
   introduction: string;
   memories: Memory[];
   siteContent?: SiteContent;

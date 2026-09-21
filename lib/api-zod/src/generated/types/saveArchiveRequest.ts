@@ -9,6 +9,9 @@ import type { Archive } from './archive';
 
 export interface SaveArchiveRequest {
   archive: Archive;
-  /** Version read by the editor before it started editing */
-  expectedVersion?: string;
+  /**
+     * Server revision read by the editor before it started editing
+     * @minimum 1
+     */
+  expectedVersion?: number;
 }

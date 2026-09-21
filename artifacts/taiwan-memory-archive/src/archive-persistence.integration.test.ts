@@ -277,7 +277,7 @@ test('stale archive versions are rejected without removing another editor page',
       body: JSON.stringify({ archive: currentArchive, expectedVersion: original.version }),
     });
     assert.equal(firstSave.response.ok, true, JSON.stringify(firstSave.body));
-    assert.equal(typeof firstSave.body.version, 'string');
+    assert.equal(typeof firstSave.body.version, 'number');
 
     const staleSave = await requestArchiveWithStatus({
       method: 'PUT',
@@ -297,6 +297,77 @@ test('stale archive versions are rejected without removing another editor page',
           ...original,
           ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
         },
+        expectedVersion: current.version,
+      }),
+    });
+  }
+});
+
+test('archive revisions are unique and increase across back-to-back saves', { skip: !shouldRun }, async () => {
+  const original = await requestArchive();
+  assert.equal(typeof original.version, 'number');
+  let expectedVersion = original.version as number;
+
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      const save = await requestArchiveWithStatus({
+        method: 'PUT',
+        body: JSON.stringify({
+          archive: { ...original, introduction: `連續保存測試 ${index}` },
+          expectedVersion,
+        }),
+      });
+      assert.equal(save.response.status, 200, JSON.stringify(save.body));
+      assert.equal(typeof save.body.version, 'number');
+      assert.equal(save.body.version, expectedVersion + 1);
+      expectedVersion = save.body.version as number;
+    }
+  } finally {
+    const current = await requestArchive({ cache: 'no-store' });
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({
+        archive: original,
+        expectedVersion: current.version,
+      }),
+    });
+  }
+});
+
+test('concurrent saves with one expected revision have one winner and one conflict', { skip: !shouldRun }, async () => {
+  const original = await requestArchive();
+  assert.equal(typeof original.version, 'number');
+  const uniqueSuffix = Date.now();
+  const archives = [
+    {
+      ...original,
+      introduction: `並發保存測試 A ${uniqueSuffix}`,
+    },
+    {
+      ...original,
+      introduction: `並發保存測試 B ${uniqueSuffix}`,
+    },
+  ];
+
+  try {
+    const results = await Promise.all(
+      archives.map((archive) => requestArchiveWithStatus({
+        method: 'PUT',
+        body: JSON.stringify({ archive, expectedVersion: original.version }),
+      })),
+    );
+    assert.equal(results.filter(({ response }) => response.status === 200).length, 1);
+    assert.equal(results.filter(({ response }) => response.status === 409).length, 1);
+    const winner = results.find(({ response }) => response.status === 200);
+    assert.ok(winner);
+    assert.equal(typeof winner.body.version, 'number');
+    assert.equal(winner.body.version, (original.version as number) + 1);
+  } finally {
+    const current = await requestArchive({ cache: 'no-store' });
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({
+        archive: original,
         expectedVersion: current.version,
       }),
     });
