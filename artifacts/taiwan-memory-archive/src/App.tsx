@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Edit3, Eye, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -45,7 +45,7 @@ function loadArchive(): ArchiveData {
   return seedData;
 }
 
-function Header({ onEdit }: { onEdit: () => void }) {
+function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="masthead relative z-30">
@@ -59,14 +59,12 @@ function Header({ onEdit }: { onEdit: () => void }) {
         <nav className="hidden items-center gap-8 md:flex" aria-label="主要導覽">
           <a href="#memories" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-memories">記憶索引</a>
           <a href="#about" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-about">關於資料庫</a>
-          <button onClick={onEdit} className="btn-ghost border border-white/20 text-sm text-white/85 hover:bg-white/10" data-testid="button-open-editor"><Edit3 size={15} /> 編輯資料庫</button>
         </nav>
         <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost md:hidden" aria-label="開啟導覽選單" aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
       </div>
       {menuOpen && <nav className="flex flex-col gap-1 border-t border-white/10 px-5 pb-4 pt-2 md:hidden" aria-label="行動版導覽">
         <a href="#memories" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-memories">記憶索引</a>
         <a href="#about" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-about">關於資料庫</a>
-        <button onClick={onEdit} className="flex items-center gap-2 rounded px-2 py-2 text-left text-sm text-white/80" data-testid="button-mobile-editor"><Edit3 size={15} /> 編輯資料庫</button>
       </nav>}
     </header>
   );
@@ -120,7 +118,7 @@ function IndexSection({ memories, onOpen }: { memories: Memory[]; onOpen: (memor
   return <section id="memories" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
     <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><p className="section-kicker eyebrow">MEMORY INDEX / 記憶索引</p><h2 className="display-title mt-5 text-4xl font-bold sm:text-5xl">一人說起，<br /><span className="text-[hsl(var(--primary))]">大家想起。</span></h2></div><p className="max-w-sm text-sm leading-loose text-[hsl(var(--muted-foreground))]">每一筆記憶都由一位說故事的人開始。用地點、年代或一個你熟悉的詞，找找看。</p></div>
     <div className="mt-12 flex flex-col gap-5 border-y border-[hsl(var(--border))] py-5 lg:flex-row lg:items-center lg:justify-between">
-      <div className="relative max-w-sm flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋地點、人物或記憶…" className="input-archive pl-10" aria-label="搜尋記憶" data-testid="input-search-memories" /></div>
+      <div className="relative max-w-sm flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋地點、人物或記憶…" className="input-archive search-input" aria-label="搜尋記憶" data-testid="input-search-memories" /></div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="記憶分類篩選">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`filter-chip rounded-full border px-3 py-2 text-xs font-semibold ${category === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]'}`} data-testid={`button-filter-${item}`}>{item}</button>)}</div>
     </div>
     {filtered.length > 0 ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((memory, index) => <div key={memory.id} className={`fade-up delay-${Math.min(index + 1, 4)}`}><MemoryCard memory={memory} onOpen={onOpen} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] py-20 text-center"><Search className="mx-auto mb-4 text-[hsl(var(--secondary))]" size={30} /><p className="serif text-xl">還沒有找到這段記憶</p><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">換個詞試試，或把一個新故事放進資料庫。</p></div>}
@@ -131,7 +129,7 @@ function IndexSection({ memories, onOpen }: { memories: Memory[]; onOpen: (memor
 function AboutSection() {
   return <section id="about" className="border-y border-[hsl(var(--border))] bg-[hsl(var(--muted)/.55)]"><div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-[.9fr_1.1fr] lg:px-8 lg:py-28">
     <div><p className="section-kicker eyebrow">WHY WE KEEP / 為什麼保存</p><h2 className="display-title mt-5 text-4xl font-bold sm:text-5xl">把「以前」<br /><span className="text-[hsl(var(--secondary))]">交給以後。</span></h2><p className="mt-7 max-w-md text-sm leading-loose text-[hsl(var(--muted-foreground))]">一個孩子記得的遊戲，常常也是一個家庭、一條街、甚至一整個時代的共同記憶。這座資料庫邀請不同世代坐下來，讓口述成為可以再被聽見的文化。</p></div>
-    <div className="grid items-start gap-5 sm:grid-cols-[1.15fr_.85fr]"><div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm"><img src="/archive-reference.png" alt="孩子與長者一起記錄台灣玩耍故事的概念圖" className="block w-full object-cover" /><div className="p-4 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">從交流、記錄到分享——記憶被好好接住，就能繼續往下走。</div></div><div className="space-y-5 sm:pt-12"><div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><Sparkles size={20} className="mb-7 text-[hsl(var(--accent))]" /><div className="serif text-3xl font-bold">每個人<br />都是收藏家。</div></div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6"><div className="serif text-3xl font-bold text-[hsl(var(--secondary))]">1960 →</div><p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">跨越不同年代，持續收錄中</p></div></div></div>
+     <div className="grid items-start gap-5 sm:grid-cols-2"><div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><Sparkles size={20} className="mb-7 text-[hsl(var(--accent))]" /><div className="serif text-3xl font-bold">每個人<br />都是收藏家。</div></div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:mt-12"><div className="serif text-3xl font-bold text-[hsl(var(--secondary))]">1960 →</div><p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">跨越不同年代，持續收錄中</p></div></div>
   </div></section>;
 }
 
@@ -176,7 +174,7 @@ function Home() {
   useEffect(() => { localStorage.setItem('taiwan-memory-archive', JSON.stringify(archive)); }, [archive]);
   const saveArchive = (data: ArchiveData) => { setArchive(data); setEditing(false); };
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
-  return <div className="archive-shell texture"><Header onEdit={() => setGateOpen(true)} /><main><Hero introduction={archive.introduction} onExplore={explore} /><IndexSection memories={archive.memories} onOpen={setDetail} /><AboutSection /></main><Footer onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
+  return <div className="archive-shell texture"><Header /><main><Hero introduction={archive.introduction} onExplore={explore} /><IndexSection memories={archive.memories} onOpen={setDetail} /><AboutSection /></main><Footer onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
 }
 
 function Router() {
