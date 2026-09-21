@@ -10,3 +10,5 @@ export * from './archive';
 export * from './healthStatus';
 export * from './memory';
 export * from './saveArchiveRequest';
+export * from './siteContent';
+export * from './siteTextBlock';

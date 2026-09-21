@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getArchive as getSharedArchive, saveArchive as saveSharedArchive } from '@workspace/api-client-react';
-import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, ImagePlus, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, LayoutTemplate, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -24,10 +24,92 @@ type Memory = {
   images?: string[];
 };
 
-type ArchiveData = { introduction: string; memories: Memory[] };
+type SiteTextBlock = {
+  id: string;
+  label: string;
+  section: string;
+  html: string;
+  x: number;
+  y: number;
+  width: number;
+  align: 'left' | 'center' | 'right';
+};
+
+type SiteContent = { blocks: SiteTextBlock[] };
+type ArchiveData = { introduction: string; memories: Memory[]; siteContent: SiteContent };
+
+const defaultSiteBlocks: SiteTextBlock[] = [
+  { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TAIWAN PLAY MEMORIES', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'header.title', label: '頁首網站名稱', section: '頁首', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'nav.memories', label: '導覽：記憶索引', section: '頁首', html: '記憶索引', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'nav.about', label: '導覽：關於資料庫', section: '頁首', html: '關於資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.eyebrow', label: '主視覺眉題', section: '主視覺', html: '一座正在長大的集體記憶', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.title', label: '主視覺大標題', section: '主視覺', html: '玩過的，<br /><span style="color: hsl(var(--secondary))">就不會消失。</span>', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.description', label: '主視覺介紹', section: '主視覺', html: '一座收藏台灣童年與遊戲記憶的溫柔資料庫。從巷口的彈珠、廟埕的躲貓貓，到放學路上只屬於那一代人的暗號，這裡收下每一個「以前我們都這樣玩」的故事。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.cta', label: '主視覺按鈕', section: '主視覺', html: '走進記憶索引', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.meta', label: '主視覺補充文字', section: '主視覺', html: '收錄自 1960 年代至今的台灣故事', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.note.label', label: '主視覺卡片標籤', section: '主視覺', html: 'ARCHIVE NOTE / 0001', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.note.status', label: '主視覺卡片狀態', section: '主視覺', html: '保存中', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'hero.note.quote', label: '主視覺卡片引言', section: '主視覺', html: '「那時候沒有<br />手機，<br />但我們每天<br />都約得到。」', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.note.location', label: '主視覺卡片地點', section: '主視覺', html: '彰化・鹿港', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'hero.note.era', label: '主視覺卡片年代', section: '主視覺', html: '1980 年代', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'hero.scroll', label: '主視覺捲動提示', section: '主視覺', html: 'SCROLL TO REMEMBER', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'index.kicker', label: '索引眉題', section: '記憶索引', html: 'MEMORY INDEX / 記憶索引', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'index.title', label: '索引標題', section: '記憶索引', html: '一人說起，<br /><span style="color: hsl(var(--primary))">大家想起。</span>', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'index.description', label: '索引介紹', section: '記憶索引', html: '每一筆記憶都由一位說故事的人開始。用地點、年代或一個你熟悉的詞，找找看。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'index.searchPlaceholder', label: '搜尋框提示', section: '記憶索引', html: '搜尋地點、人物或記憶…', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'index.emptyTitle', label: '無搜尋結果標題', section: '記憶索引', html: '還沒有找到這段記憶', x: 0, y: 0, width: 100, align: 'center' },
+  { id: 'index.emptyBody', label: '無搜尋結果說明', section: '記憶索引', html: '換個詞試試，或把一個新故事放進資料庫。', x: 0, y: 0, width: 100, align: 'center' },
+  { id: 'index.count', label: '索引筆數文字', section: '記憶索引', html: '目前收藏', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.全部', label: '分類按鈕：全部', section: '記憶索引', html: '全部', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.童玩', label: '分類按鈕：童玩', section: '記憶索引', html: '童玩', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.巷弄遊戲', label: '分類按鈕：巷弄遊戲', section: '記憶索引', html: '巷弄遊戲', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.家族手作', label: '分類按鈕：家族手作', section: '記憶索引', html: '家族手作', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.電玩時光', label: '分類按鈕：電玩時光', section: '記憶索引', html: '電玩時光', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.集體遊戲', label: '分類按鈕：集體遊戲', section: '記憶索引', html: '集體遊戲', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'category.童謠遊戲', label: '分類按鈕：童謠遊戲', section: '記憶索引', html: '童謠遊戲', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'card.readMore', label: '卡片閱讀連結', section: '記憶卡片', html: '閱讀故事', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'card.number', label: '卡片編號前綴', section: '記憶卡片', html: 'NO.', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'memory.detailLabel', label: '故事詳頁標籤', section: '故事詳頁', html: '故事詳頁', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'memory.storytellerLabel', label: '說故事的人標籤', section: '故事詳頁', html: '說故事的人', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'memory.categoryLabel', label: '分類標籤', section: '故事詳頁', html: '分類', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'about.kicker', label: '關於眉題', section: '關於資料庫', html: 'WHY WE KEEP / 為什麼保存', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'about.title', label: '關於標題', section: '關於資料庫', html: '把「以前」<br /><span style="color: hsl(var(--secondary))">交給以後。</span>', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'about.body', label: '關於說明', section: '關於資料庫', html: '一個孩子記得的遊戲，常常也是一個家庭、一條街、甚至一整個時代的共同記憶。這座資料庫邀請不同世代坐下來，讓口述成為可以再被聽見的文化。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'about.cardTitle', label: '關於卡片標題', section: '關於資料庫', html: '每個人<br />都是收藏家。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'about.year', label: '關於年代數字', section: '關於資料庫', html: '1960 →', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'about.yearBody', label: '關於年代說明', section: '關於資料庫', html: '跨越不同年代，持續收錄中', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.brand', label: '頁尾網站名稱', section: '頁尾', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.body', label: '頁尾說明', section: '頁尾', html: '讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.explore', label: '頁尾導覽標題', section: '頁尾', html: 'EXPLORE', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.contribute', label: '頁尾投稿標題', section: '頁尾', html: 'CONTRIBUTE', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.contributeBody', label: '頁尾投稿說明', section: '頁尾', html: '你也有一段想保存的童年嗎？', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.contributeCta', label: '頁尾編輯連結', section: '頁尾', html: '進入編輯入口　→', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.copyright', label: '頁尾版權文字', section: '頁尾', html: '一個開放給所有人的家庭記憶計畫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'right' },
+];
+
+function createDefaultSiteContent(): SiteContent {
+  return { blocks: defaultSiteBlocks.map((block) => ({ ...block })) };
+}
+
+type SiteTextBlockInput = Omit<SiteTextBlock, 'align'> & { align: string };
+
+function normalizeArchive(value: { memories: Memory[]; introduction: string; siteContent?: { blocks?: SiteTextBlockInput[] } }): ArchiveData {
+  const incoming = (value.siteContent?.blocks ?? []).map((block) => ({
+    ...block,
+    align: block.align === 'center' || block.align === 'right' ? block.align : 'left',
+  })) as SiteTextBlock[];
+  const byId = new Map(incoming.map((block) => [block.id, block]));
+  const defaults = createDefaultSiteContent().blocks;
+  const blocks = defaults.map((block) => ({ ...block, ...byId.get(block.id) }));
+  incoming.filter((block) => !defaults.some((defaultBlock) => defaultBlock.id === block.id)).forEach((block) => blocks.push(block));
+  return { introduction: value.introduction, memories: value.memories, siteContent: { blocks } };
+}
 
 const seedData: ArchiveData = {
   introduction: '一座收藏台灣童年與遊戲記憶的溫柔資料庫。從巷口的彈珠、廟埕的躲貓貓，到放學路上只屬於那一代人的暗號，這裡收下每一個「以前我們都這樣玩」的故事。',
+  siteContent: createDefaultSiteContent(),
   memories: [
     { id: '01', title: '鐵皮屋頂下的紙上遊戲', location: '臺南・新化', era: '1970 年代', category: '童玩', storyteller: '陳阿姨，1958 年生', excerpt: '下雨天不能去溪邊，我們就把整個下午摺進一張紙裡。', story: '下雨天不能去溪邊，我們就把整個下午摺進一張紙裡。那時候文具店一張厚紙要兩毛錢，我們捨不得買，就拿哥哥的作業簿背面。畫格子、寫上「前進三格」，再把橡皮擦削成小棋子。鐵皮屋頂被雨打得轟轟響，誰先走到終點，誰就可以吃掉最後一顆鹹酸甜。\n\n現在回想起來，那個遊戲其實沒有固定規則。每次有人耍賴，我們就一起改規則，改到所有人都想再玩一次。', color: '#cf7657', mark: '雨日', },
     { id: '02', title: '圍牆邊的彈珠王國', location: '彰化・鹿港', era: '1980 年代', category: '巷弄遊戲', storyteller: '林志明，1972 年生', excerpt: '那面圍牆不是圍牆，是我們每天都要征服的山。', story: '鹿港的夏天很早就熱起來。放學後，我們把書包往家裡一丟，手掌沾著一點粉筆灰，就在老戲院後面的圍牆邊集合。地上挖幾個小洞，誰能把彈珠打進最遠的洞，大家就叫他「王」。\n\n我最珍惜的是一顆藍色透明彈珠，裡面像有一小朵雲。後來它不見了，我沿著排水溝找了三天。找不到是找不到，但那三天所有人都陪我蹲在地上，這件事我一直記得。', color: '#3e8090', mark: '街角', },
@@ -44,9 +126,9 @@ const queryClient = new QueryClient();
 function loadArchive(): ArchiveData {
   try {
     const stored = localStorage.getItem('taiwan-memory-archive');
-    if (stored) return JSON.parse(stored) as ArchiveData;
+    if (stored) return normalizeArchive(JSON.parse(stored) as ArchiveData);
   } catch { /* use seed data when local storage is unavailable */ }
-  return seedData;
+  return normalizeArchive(seedData);
 }
 
 function getMemoryImages(memory: Memory): string[] {
@@ -91,13 +173,41 @@ function sanitizeStoryHtml(html: string): string {
   return documentRoot.innerHTML;
 }
 
+function getSiteBlock(siteContent: SiteContent, id: string): SiteTextBlock | undefined {
+  return siteContent.blocks.find((block) => block.id === id);
+}
+
+function siteBlockStyle(block: SiteTextBlock | undefined): Record<string, string | number | undefined> {
+  if (!block) return {};
+  return {
+    position: block.x || block.y ? 'relative' : undefined,
+    display: block.x || block.y || block.width < 100 || block.align !== 'left' ? 'block' : undefined,
+    left: block.x ? `${block.x}px` : undefined,
+    top: block.y ? `${block.y}px` : undefined,
+    maxWidth: block.width < 100 ? `${block.width}%` : undefined,
+    textAlign: block.align,
+  };
+}
+
+function SiteText({ siteContent, id, fallback, className, as: Tag = 'span' }: { siteContent: SiteContent; id: string; fallback: string; className?: string; as?: 'span' | 'p' | 'div' | 'h1' | 'h2' | 'h3' }) {
+  const block = getSiteBlock(siteContent, id);
+  return <Tag className={className} style={siteBlockStyle(block)} dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(block?.html || fallback) }} />;
+}
+
+function sitePlainText(siteContent: SiteContent, id: string, fallback: string): string {
+  const block = getSiteBlock(siteContent, id);
+  const container = document.createElement('div');
+  container.innerHTML = sanitizeStoryHtml(block?.html || fallback);
+  return (container.textContent ?? '').replace(/\u00a0/g, ' ').trim();
+}
+
 function storyToPlainText(html: string): string {
   const container = document.createElement('div');
   container.innerHTML = sanitizeStoryHtml(html);
   return (container.textContent ?? '').replace(/\u00a0/g, ' ').trim();
 }
 
-function Header() {
+function Header({ siteContent }: { siteContent: SiteContent }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="masthead relative z-30">
@@ -106,63 +216,63 @@ function Header() {
           <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]">
             <BookOpen size={18} />
           </span>
-          <span><span className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]">TAIWAN PLAY MEMORIES</span><span className="serif text-lg font-bold">台灣玩耍記憶資料庫</span></span>
+          <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TAIWAN PLAY MEMORIES" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></span>
         </a>
         <nav className="hidden items-center gap-8 md:flex" aria-label="主要導覽">
-          <a href="#memories" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-memories">記憶索引</a>
-          <a href="#about" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-about">關於資料庫</a>
+          <a href="#memories" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a>
+          <a href="#about" className="text-sm text-white/75 transition hover:text-[hsl(var(--accent))]" data-testid="link-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a>
         </nav>
         <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost md:hidden" aria-label="開啟導覽選單" aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
       </div>
       {menuOpen && <nav className="flex flex-col gap-1 border-t border-white/10 px-5 pb-4 pt-2 md:hidden" aria-label="行動版導覽">
-        <a href="#memories" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-memories">記憶索引</a>
-        <a href="#about" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-about">關於資料庫</a>
+        <a href="#memories" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a>
+        <a href="#about" onClick={() => setMenuOpen(false)} className="rounded px-2 py-2 text-sm text-white/80" data-testid="link-mobile-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a>
       </nav>}
     </header>
   );
 }
 
-function Hero({ introduction, onExplore }: { introduction: string; onExplore: () => void }) {
+function Hero({ introduction, siteContent, onExplore }: { introduction: string; siteContent: SiteContent; onExplore: () => void }) {
   return <section id="top" className="masthead relative overflow-hidden">
     <div className="hero-orbit" aria-hidden="true"><span className="hero-dot" /></div>
     <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-16 lg:grid-cols-[1.1fr_.9fr] lg:px-8 lg:pb-28 lg:pt-24">
       <div className="max-w-3xl">
-        <p className="eyebrow fade-up text-[hsl(var(--accent))]">一座正在長大的集體記憶</p>
-        <h1 className="display-title fade-up delay-1 mt-7 text-5xl font-black tracking-tight text-white sm:text-7xl lg:text-[6.8rem]">玩過的，<br /><span className="text-[hsl(var(--secondary))]">就不會消失。</span></h1>
-        <p className="fade-up delay-2 mt-8 max-w-xl text-base leading-loose text-white/70 sm:text-lg">{introduction}</p>
+        <SiteText siteContent={siteContent} id="hero.eyebrow" fallback="一座正在長大的集體記憶" className="eyebrow fade-up text-[hsl(var(--accent))]" as="p" />
+        <SiteText siteContent={siteContent} id="hero.title" fallback="玩過的，<br /><span style=&quot;color: hsl(var(--secondary))&quot;>就不會消失。</span>" className="display-title fade-up delay-1 mt-7 text-5xl font-black tracking-tight text-white sm:text-7xl lg:text-[6.8rem]" as="h1" />
+        <SiteText siteContent={siteContent} id="hero.description" fallback={introduction} className="fade-up delay-2 mt-8 max-w-xl text-base leading-loose text-white/70 sm:text-lg" as="p" />
         <div className="fade-up delay-3 mt-9 flex flex-wrap items-center gap-4">
-          <button onClick={onExplore} className="btn-primary" data-testid="button-explore"><span>走進記憶索引</span><ArrowDown size={16} /></button>
-          <span className="text-xs tracking-wide text-white/45">收錄自 1960 年代至今的台灣故事</span>
+          <button onClick={onExplore} className="btn-primary" data-testid="button-explore"><SiteText siteContent={siteContent} id="hero.cta" fallback="走進記憶索引" /><ArrowDown size={16} /></button>
+          <SiteText siteContent={siteContent} id="hero.meta" fallback="收錄自 1960 年代至今的台灣故事" className="text-xs tracking-wide text-white/45" />
         </div>
       </div>
       <div className="relative hidden min-h-[330px] items-end justify-end lg:flex">
         <div className="fade-up delay-4 relative w-[330px] rotate-3 border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur-sm">
-          <div className="mb-4 flex items-center justify-between text-[10px] tracking-[.18em] text-white/60"><span>ARCHIVE NOTE / 0001</span><span>保存中</span></div>
-          <div className="serif border-l-2 border-[hsl(var(--secondary))] py-4 pl-5 text-2xl leading-relaxed text-white">「那時候沒有<br />手機，<br />但我們每天<br />都約得到。」</div>
-          <div className="mt-7 flex justify-between text-xs text-white/50"><span>彰化・鹿港</span><span>1980 年代</span></div>
+          <div className="mb-4 flex items-center justify-between text-[10px] tracking-[.18em] text-white/60"><SiteText siteContent={siteContent} id="hero.note.label" fallback="ARCHIVE NOTE / 0001" /><SiteText siteContent={siteContent} id="hero.note.status" fallback="保存中" /></div>
+          <SiteText siteContent={siteContent} id="hero.note.quote" fallback="「那時候沒有<br />手機，<br />但我們每天<br />都約得到。」" className="serif border-l-2 border-[hsl(var(--secondary))] py-4 pl-5 text-2xl leading-relaxed text-white" as="div" />
+          <div className="mt-7 flex justify-between text-xs text-white/50"><SiteText siteContent={siteContent} id="hero.note.location" fallback="彰化・鹿港" /><SiteText siteContent={siteContent} id="hero.note.era" fallback="1980 年代" /></div>
         </div>
       </div>
     </div>
-    <div className="relative mx-auto max-w-7xl px-5 pb-5 lg:px-8"><div className="flex items-center gap-3 text-[10px] tracking-[.2em] text-white/40"><span className="h-px w-8 bg-[hsl(var(--secondary))]" /> SCROLL TO REMEMBER</div></div>
+    <div className="relative mx-auto max-w-7xl px-5 pb-5 lg:px-8"><div className="flex items-center gap-3 text-[10px] tracking-[.2em] text-white/40"><span className="h-px w-8 bg-[hsl(var(--secondary))]" /><SiteText siteContent={siteContent} id="hero.scroll" fallback="SCROLL TO REMEMBER" /></div></div>
   </section>;
 }
 
-function MemoryCard({ memory, onOpen }: { memory: Memory; onOpen: (memory: Memory) => void }) {
+function MemoryCard({ memory, siteContent, onOpen }: { memory: Memory; siteContent: SiteContent; onOpen: (memory: Memory) => void }) {
   const images = getMemoryImages(memory);
   return <article className="memory-card overflow-hidden rounded-[1.15rem] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))]" data-testid={`card-memory-${memory.id}`}>
     <button onClick={() => onOpen(memory)} className="block w-full text-left" data-testid={`button-open-memory-${memory.id}`}>
       <div className="memory-image flex flex-col justify-between p-5" style={{ background: memory.color }}>
         {images[0] && <img src={images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         {images[0] && <div className="memory-image-overlay absolute inset-0" aria-hidden="true" />}
-        <div className="relative z-[1] flex justify-between text-white/80"><span className="card-stamp">{memory.mark}</span><span className="text-[10px] tracking-[.18em]">NO. {memory.id}</span></div>
+        <div className="relative z-[1] flex justify-between text-white/80"><span className="card-stamp">{memory.mark}</span><span className="text-[10px] tracking-[.18em]"><SiteText siteContent={siteContent} id="card.number" fallback="NO." /> {memory.id}</span></div>
         <div className="relative z-[1]"><div className="mb-3 flex items-center gap-2 text-xs text-white/75"><MapPin size={13} />{memory.location}</div><h3 className="serif text-2xl font-bold leading-snug text-white">{memory.title}</h3></div>
       </div>
-      <div className="p-5"><div className="mb-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.era}</span><span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1">{memory.category}</span></div><p className="serif min-h-[54px] text-base leading-relaxed text-[hsl(var(--foreground))]">「{memory.excerpt}」</p><div className="mt-5 flex items-center justify-between border-t border-[hsl(var(--border))] pt-4 text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.storyteller}</span><span className="flex items-center gap-1 font-semibold text-[hsl(var(--primary))]">閱讀故事 <ArrowRight size={14} /></span></div></div>
+      <div className="p-5"><div className="mb-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.era}</span><span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1">{memory.category}</span></div><p className="serif min-h-[54px] text-base leading-relaxed text-[hsl(var(--foreground))]">「{memory.excerpt}」</p><div className="mt-5 flex items-center justify-between border-t border-[hsl(var(--border))] pt-4 text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.storyteller}</span><span className="flex items-center gap-1 font-semibold text-[hsl(var(--primary))]"><SiteText siteContent={siteContent} id="card.readMore" fallback="閱讀故事" /><ArrowRight size={14} /></span></div></div>
     </button>
   </article>;
 }
 
-function IndexSection({ memories, onOpen }: { memories: Memory[]; onOpen: (memory: Memory) => void }) {
+function IndexSection({ memories, siteContent, onOpen }: { memories: Memory[]; siteContent: SiteContent; onOpen: (memory: Memory) => void }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
   const filtered = useMemo(() => memories.filter((memory) => {
@@ -171,30 +281,30 @@ function IndexSection({ memories, onOpen }: { memories: Memory[]; onOpen: (memor
     return matchCategory && text.includes(search.toLowerCase());
   }), [memories, search, category]);
   return <section id="memories" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
-    <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><p className="section-kicker eyebrow">MEMORY INDEX / 記憶索引</p><h2 className="display-title mt-5 text-4xl font-bold sm:text-5xl">一人說起，<br /><span className="text-[hsl(var(--primary))]">大家想起。</span></h2></div><p className="max-w-sm text-sm leading-loose text-[hsl(var(--muted-foreground))]">每一筆記憶都由一位說故事的人開始。用地點、年代或一個你熟悉的詞，找找看。</p></div>
+    <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><SiteText siteContent={siteContent} id="index.kicker" fallback="MEMORY INDEX / 記憶索引" className="section-kicker eyebrow" as="p" /><SiteText siteContent={siteContent} id="index.title" fallback="一人說起，<br /><span style=&quot;color: hsl(var(--primary))&quot;>大家想起。</span>" className="display-title mt-5 text-4xl font-bold sm:text-5xl" as="h2" /></div><SiteText siteContent={siteContent} id="index.description" fallback="每一筆記憶都由一位說故事的人開始。用地點、年代或一個你熟悉的詞，找找看。" className="max-w-sm text-sm leading-loose text-[hsl(var(--muted-foreground))]" as="p" /></div>
     <div className="mt-12 flex flex-col gap-5 border-y border-[hsl(var(--border))] py-5 lg:flex-row lg:items-center lg:justify-between">
-      <div className="relative max-w-sm flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋地點、人物或記憶…" className="input-archive search-input" aria-label="搜尋記憶" data-testid="input-search-memories" /></div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="記憶分類篩選">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`filter-chip rounded-full border px-3 py-2 text-xs font-semibold ${category === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]'}`} data-testid={`button-filter-${item}`}>{item}</button>)}</div>
+      <div className="relative max-w-sm flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={sitePlainText(siteContent, 'index.searchPlaceholder', '搜尋地點、人物或記憶…')} className="input-archive search-input" aria-label="搜尋記憶" data-testid="input-search-memories" /></div>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="記憶分類篩選">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`filter-chip rounded-full border px-3 py-2 text-xs font-semibold ${category === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]'}`} data-testid={`button-filter-${item}`}><SiteText siteContent={siteContent} id={`category.${item}`} fallback={item} /></button>)}</div>
     </div>
-    {filtered.length > 0 ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((memory, index) => <div key={memory.id} className={`fade-up delay-${Math.min(index + 1, 4)}`}><MemoryCard memory={memory} onOpen={onOpen} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] py-20 text-center"><Search className="mx-auto mb-4 text-[hsl(var(--secondary))]" size={30} /><p className="serif text-xl">還沒有找到這段記憶</p><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">換個詞試試，或把一個新故事放進資料庫。</p></div>}
-    <p className="mt-7 text-xs text-[hsl(var(--muted-foreground))]" data-testid="text-memory-count">目前收藏 {filtered.length} / {memories.length} 則記憶</p>
+    {filtered.length > 0 ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((memory, index) => <div key={memory.id} className={`fade-up delay-${Math.min(index + 1, 4)}`}><MemoryCard memory={memory} siteContent={siteContent} onOpen={onOpen} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] py-20 text-center"><Search className="mx-auto mb-4 text-[hsl(var(--secondary))]" size={30} /><SiteText siteContent={siteContent} id="index.emptyTitle" fallback="還沒有找到這段記憶" className="serif text-xl" as="p" /><SiteText siteContent={siteContent} id="index.emptyBody" fallback="換個詞試試，或把一個新故事放進資料庫。" className="mt-2 text-sm text-[hsl(var(--muted-foreground))]" as="p" /></div>}
+    <p className="mt-7 text-xs text-[hsl(var(--muted-foreground))]" data-testid="text-memory-count"><SiteText siteContent={siteContent} id="index.count" fallback="目前收藏" /> {filtered.length} / {memories.length} 則記憶</p>
   </section>;
 }
 
-function AboutSection() {
+function AboutSection({ siteContent }: { siteContent: SiteContent }) {
   return <section id="about" className="border-y border-[hsl(var(--border))] bg-[hsl(var(--muted)/.55)]"><div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-[.9fr_1.1fr] lg:px-8 lg:py-28">
-    <div><p className="section-kicker eyebrow">WHY WE KEEP / 為什麼保存</p><h2 className="display-title mt-5 text-4xl font-bold sm:text-5xl">把「以前」<br /><span className="text-[hsl(var(--secondary))]">交給以後。</span></h2><p className="mt-7 max-w-md text-sm leading-loose text-[hsl(var(--muted-foreground))]">一個孩子記得的遊戲，常常也是一個家庭、一條街、甚至一整個時代的共同記憶。這座資料庫邀請不同世代坐下來，讓口述成為可以再被聽見的文化。</p></div>
-     <div className="grid items-start gap-5 sm:grid-cols-2"><div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><Sparkles size={20} className="mb-7 text-[hsl(var(--accent))]" /><div className="serif text-3xl font-bold">每個人<br />都是收藏家。</div></div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:mt-12"><div className="serif text-3xl font-bold text-[hsl(var(--secondary))]">1960 →</div><p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">跨越不同年代，持續收錄中</p></div></div>
+    <div><SiteText siteContent={siteContent} id="about.kicker" fallback="WHY WE KEEP / 為什麼保存" className="section-kicker eyebrow" as="p" /><SiteText siteContent={siteContent} id="about.title" fallback="把「以前」<br /><span style=&quot;color: hsl(var(--secondary))&quot;>交給以後。</span>" className="display-title mt-5 text-4xl font-bold sm:text-5xl" as="h2" /><SiteText siteContent={siteContent} id="about.body" fallback="一個孩子記得的遊戲，常常也是一個家庭、一條街、甚至一整個時代的共同記憶。這座資料庫邀請不同世代坐下來，讓口述成為可以再被聽見的文化。" className="mt-7 max-w-md text-sm leading-loose text-[hsl(var(--muted-foreground))]" as="p" /></div>
+      <div className="grid items-start gap-5 sm:grid-cols-2"><div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><Sparkles size={20} className="mb-7 text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="about.cardTitle" fallback="每個人<br />都是收藏家。" className="serif text-3xl font-bold" as="div" /></div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:mt-12"><SiteText siteContent={siteContent} id="about.year" fallback="1960 →" className="serif text-3xl font-bold text-[hsl(var(--secondary))]" as="div" /><SiteText siteContent={siteContent} id="about.yearBody" fallback="跨越不同年代，持續收錄中" className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]" as="p" /></div></div>
   </div></section>;
 }
 
-function MemoryModal({ memory, onClose }: { memory: Memory; onClose: () => void }) {
+function MemoryModal({ memory, siteContent, onClose }: { memory: Memory; siteContent: SiteContent; onClose: () => void }) {
   const images = getMemoryImages(memory);
   return <div className="detail-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="memory-detail-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="modal-panel max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-t-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-2xl sm:rounded-3xl">
-      <div className="flex items-center justify-between p-5 sm:p-7"><div className="eyebrow text-[hsl(var(--primary))]">MEMORY NO. {memory.id} / 故事詳頁</div><button onClick={onClose} aria-label="關閉故事詳頁" className="btn-ghost" data-testid="button-close-memory"><X size={20} /></button></div>
+       <div className="flex items-center justify-between p-5 sm:p-7"><div className="eyebrow text-[hsl(var(--primary))]">MEMORY NO. {memory.id} / <SiteText siteContent={siteContent} id="memory.detailLabel" fallback="故事詳頁" /></div><button onClick={onClose} aria-label="關閉故事詳頁" className="btn-ghost" data-testid="button-close-memory"><X size={20} /></button></div>
        {images[0] ? <div className="memory-detail-image relative mx-5 h-44 overflow-hidden rounded-2xl sm:mx-7 sm:h-64"><img src={images[0]} alt={`${memory.title} 的故事圖片`} className="h-full w-full object-cover" /><div className="memory-image-overlay absolute inset-0" aria-hidden="true" /></div> : <div className="mx-5 h-2 rounded-full sm:mx-7" style={{ background: memory.color }} />}
-      <div className="grid gap-8 p-5 sm:p-10 lg:grid-cols-[.72fr 1.28fr]"><div><p className="text-sm text-[hsl(var(--muted-foreground))]">{memory.location}　/　{memory.era}</p><h2 id="memory-detail-title" className="display-title mt-4 text-4xl font-bold">{memory.title}</h2><div className="mt-8 border-l-2 border-[hsl(var(--secondary))] pl-5"><p className="quote-mark">“</p><p className="serif text-xl leading-loose">{memory.excerpt}</p></div><p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]">說故事的人<br /><strong className="mt-1 block text-base text-[hsl(var(--foreground))]">{memory.storyteller}</strong></p></div><div><div className="rich-story text-base leading-[2.1]" dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(memory.storyHtml ?? storyToHtml(memory.story)) }} />{images.length > 1 && <div className="mt-10 grid grid-cols-2 gap-3 border-t border-[hsl(var(--border))] pt-6 sm:grid-cols-3">{images.slice(1).map((image, index) => <img key={`${memory.id}-image-${index + 1}`} src={image} alt={`${memory.title} 的故事圖片 ${index + 2}`} className="aspect-square w-full rounded-xl object-cover" />)}</div>}<div className="mt-10 border-t border-[hsl(var(--border))] pt-5 text-xs text-[hsl(var(--muted-foreground))]">分類：{memory.category}</div></div></div>
+       <div className="grid gap-8 p-5 sm:p-10 lg:grid-cols-[.72fr 1.28fr]"><div><p className="text-sm text-[hsl(var(--muted-foreground))]">{memory.location}　/　{memory.era}</p><h2 id="memory-detail-title" className="display-title mt-4 text-4xl font-bold">{memory.title}</h2><div className="mt-8 border-l-2 border-[hsl(var(--secondary))] pl-5"><p className="quote-mark">“</p><p className="serif text-xl leading-loose">{memory.excerpt}</p></div><p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]"><SiteText siteContent={siteContent} id="memory.storytellerLabel" fallback="說故事的人" /><br /><strong className="mt-1 block text-base text-[hsl(var(--foreground))]">{memory.storyteller}</strong></p></div><div><div className="rich-story text-base leading-[2.1]" dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(memory.storyHtml ?? storyToHtml(memory.story)) }} />{images.length > 1 && <div className="mt-10 grid grid-cols-2 gap-3 border-t border-[hsl(var(--border))] pt-6 sm:grid-cols-3">{images.slice(1).map((image, index) => <img key={`${memory.id}-image-${index + 1}`} src={image} alt={`${memory.title} 的故事圖片 ${index + 2}`} className="aspect-square w-full rounded-xl object-cover" />)}</div>}<div className="mt-10 border-t border-[hsl(var(--border))] pt-5 text-xs text-[hsl(var(--muted-foreground))]"><SiteText siteContent={siteContent} id="memory.categoryLabel" fallback="分類" />：{memory.category}</div></div></div>
     </div>
   </div>;
 }
@@ -332,6 +442,36 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
   </div>;
 }
 
+function PageLayoutEditor({ siteContent, onChange }: { siteContent: SiteContent; onChange: (value: SiteContent) => void }) {
+  const [selectedId, setSelectedId] = useState(siteContent.blocks[0]?.id ?? '');
+  const dragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
+  const selected = siteContent.blocks.find((block) => block.id === selectedId) ?? siteContent.blocks[0];
+  const groups = siteContent.blocks.reduce<Record<string, SiteTextBlock[]>>((result, block) => {
+    (result[block.section] ??= []).push(block);
+    return result;
+  }, {});
+  const updateSelected = (patch: Partial<SiteTextBlock>) => {
+    if (!selected) return;
+    onChange({ blocks: siteContent.blocks.map((block) => block.id === selected.id ? { ...block, ...patch } : block) });
+  };
+  const updatePositionFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current || !selected) return;
+    updateSelected({
+      x: Math.round(dragRef.current.x + event.clientX - dragRef.current.startX),
+      y: Math.round(dragRef.current.y + event.clientY - dragRef.current.startY),
+    });
+  };
+  return <div className="grid gap-6 lg:grid-cols-[.7fr_1.3fr]">
+    <aside className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+      <div className="flex items-start gap-3"><LayoutTemplate className="mt-1 text-[hsl(var(--primary))]" size={20} /><div><p className="eyebrow text-[hsl(var(--primary))]">PAGE COPY / 頁面文字</p><h2 className="serif mt-2 text-2xl font-bold">編輯網站文字</h2><p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">選擇任何文字，使用同一組富文字工具編輯。右側預覽中的文字可以拖曳排版。</p></div></div>
+      <div className="mt-6 space-y-5">{Object.entries(groups).map(([section, blocks]) => <div key={section}><p className="mb-2 text-xs font-bold tracking-wide text-[hsl(var(--muted-foreground))]">{section}</p><div className="space-y-1">{blocks.map((block) => <button key={block.id} type="button" onClick={() => setSelectedId(block.id)} className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition ${selected?.id === block.id ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'hover:bg-[hsl(var(--muted))]'}`}><GripVertical size={14} className="shrink-0 opacity-50" /><span className="truncate">{block.label}</span></button>)}</div></div>)}</div>
+    </aside>
+    <main className="space-y-5">
+      {selected ? <><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:p-8"><div className="flex items-start justify-between gap-4"><div><p className="eyebrow text-[hsl(var(--primary))]">EDIT TEXT / 編輯文字</p><h2 className="serif mt-2 text-3xl font-bold">{selected.label}</h2></div><button type="button" onClick={() => updateSelected({ x: 0, y: 0, width: 100, align: 'left' })} className="btn-outline px-3 py-2 text-xs">重設位置</button></div><RichTextEditor key={selected.id} value={selected.html} onChange={(html) => updateSelected({ html })} /><div className="mt-6 grid gap-4 sm:grid-cols-3"><label className="text-sm font-semibold">水平位移（px）<input type="number" value={selected.x} onChange={(event) => updateSelected({ x: Number(event.target.value) || 0 })} className="input-archive mt-2" /></label><label className="text-sm font-semibold">垂直位移（px）<input type="number" value={selected.y} onChange={(event) => updateSelected({ y: Number(event.target.value) || 0 })} className="input-archive mt-2" /></label><label className="text-sm font-semibold">最大寬度（%）<input type="number" min={10} max={100} value={selected.width} onChange={(event) => updateSelected({ width: Math.min(100, Math.max(10, Number(event.target.value) || 10)) })} className="input-archive mt-2" /></label></div><div className="mt-4"><p className="text-sm font-semibold">文字對齊</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => updateSelected({ align: 'left' })} className={`btn-outline px-3 py-2 ${selected.align === 'left' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : ''}`} aria-label="靠左對齊"><AlignLeft size={16} /></button><button type="button" onClick={() => updateSelected({ align: 'center' })} className={`btn-outline px-3 py-2 ${selected.align === 'center' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : ''}`} aria-label="置中對齊"><AlignCenter size={16} /></button><button type="button" onClick={() => updateSelected({ align: 'right' })} className={`btn-outline px-3 py-2 ${selected.align === 'right' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : ''}`} aria-label="靠右對齊"><AlignRight size={16} /></button></div></div></div><div className="rounded-2xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--primary))] p-5 text-white"><p className="mb-3 text-xs text-white/60">拖曳預覽中的文字調整位置</p><div className="relative min-h-[250px] overflow-hidden rounded-xl border border-white/15 bg-white/5"><div className="absolute left-1/2 top-1/2 cursor-move rounded-lg border border-dashed border-[hsl(var(--accent))] bg-[hsl(var(--primary)/.85)] p-4 shadow-xl" style={{ ...siteBlockStyle(selected), left: '50%', top: '50%', maxWidth: `${selected.width}%`, width: `${Math.min(selected.width, 100)}%`, transform: `translate(-50%, -50%) translate(${selected.x}px, ${selected.y}px)`, textAlign: selected.align }} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); dragRef.current = { startX: event.clientX, startY: event.clientY, x: selected.x, y: selected.y }; }} onPointerMove={updatePositionFromPointer} onPointerUp={() => { dragRef.current = null; }} dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(selected.html) }} /></div></div></> : <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-10 text-center">還沒有可編輯的頁面文字。</div>}
+    </main>
+  </div>;
+}
+
 function LegacyEditor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => void; onCancel: () => void; onLock: () => void }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -369,6 +509,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [editorTab, setEditorTab] = useState<'memories' | 'page'>('memories');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
@@ -402,7 +543,8 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
           <div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={async () => { setSaving(true); try { await onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); } catch { /* saveArchive reports the error and keeps the editor open */ } finally { setSaving(false); } }} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
         </div>
       </div>
-      <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />頁面文字與排版</button></div>
+      {editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
         <aside>
           <div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]">
             <p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2>
@@ -425,14 +567,14 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
             <p className="mt-6 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Eye size={14} /> 編輯完成後，請按右上角「保存變更」讓首頁看見最新內容。</p>
           </div> : <div className="flex min-h-[430px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><BookOpen className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">選一則記憶開始整理</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">或從左側新增一個故事。</p></div></div>}
         </main>
-      </div>
+      </div>}
     </div>
     {showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /></button></div></div></div>}
   </div>;
 }
 
-function Footer({ onEdit }: { onEdit: () => void }) {
-  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]"><BookOpen size={16} /></span><span className="serif text-lg font-bold">台灣玩耍記憶資料庫</span></div><p className="mt-5 max-w-xs text-sm leading-loose text-white/55">讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。</p></div><div><p className="eyebrow text-[hsl(var(--accent))]">EXPLORE</p><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href="#memories" data-testid="link-footer-memories">記憶索引</a><a href="#about" data-testid="link-footer-about">關於資料庫</a></div></div><div><p className="eyebrow text-[hsl(var(--accent))]">CONTRIBUTE</p><p className="mt-4 text-sm leading-loose text-white/65">你也有一段想保存的童年嗎？</p><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor">進入編輯入口　→</button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><span>一個開放給所有人的家庭記憶計畫</span><span>© 台灣玩耍記憶資料庫</span></div></div></footer>;
+function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: () => void }) {
+  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]"><BookOpen size={16} /></span><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href="#memories" data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href="#about" data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
 }
 
 function Home() {
@@ -444,8 +586,9 @@ function Home() {
     let active = true;
     getSharedArchive().then((sharedArchive) => {
       if (!active) return;
-      setArchive(sharedArchive);
-      localStorage.setItem('taiwan-memory-archive', JSON.stringify(sharedArchive));
+      const normalized = normalizeArchive(sharedArchive);
+      setArchive(normalized);
+      localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
     }).catch(() => {
       // A new project has no saved archive yet; seedData/localStorage remains the local fallback.
     });
@@ -454,8 +597,9 @@ function Home() {
   const saveArchive = async (data: ArchiveData) => {
     try {
       const sharedArchive = await saveSharedArchive({ editorPassword: '00000', archive: data });
-      setArchive(sharedArchive);
-      localStorage.setItem('taiwan-memory-archive', JSON.stringify(sharedArchive));
+      const normalized = normalizeArchive(sharedArchive);
+      setArchive(normalized);
+      localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
       setEditing(false);
     } catch {
       window.alert('共享資料保存失敗，請確認 API 服務正在運作後再試一次。');
@@ -463,7 +607,7 @@ function Home() {
     }
   };
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
-  return <div className="archive-shell texture"><Header /><main><Hero introduction={archive.introduction} onExplore={explore} /><IndexSection memories={archive.memories} onOpen={setDetail} /><AboutSection /></main><Footer onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
+  return <div className="archive-shell texture"><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
 }
 
 function Router() {

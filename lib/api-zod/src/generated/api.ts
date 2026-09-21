@@ -36,7 +36,19 @@ export const GetArchiveResponse = zod.object({
   "mark": zod.string(),
   "image": zod.string().optional(),
   "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
 }))
+}).optional()
 })
 
 
@@ -61,7 +73,19 @@ export const SaveArchiveBody = zod.object({
   "mark": zod.string(),
   "image": zod.string().optional(),
   "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
 }))
+}).optional()
 })
 })
 
@@ -81,7 +105,19 @@ export const SaveArchiveResponse = zod.object({
   "mark": zod.string(),
   "image": zod.string().optional(),
   "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
 }))
+}).optional()
 })
 
 

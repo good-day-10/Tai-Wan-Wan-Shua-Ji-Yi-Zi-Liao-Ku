@@ -25,9 +25,25 @@ export interface Memory {
   images?: string[];
 }
 
+export interface SiteTextBlock {
+  id: string;
+  label: string;
+  section: string;
+  html: string;
+  x: number;
+  y: number;
+  width: number;
+  align: string;
+}
+
+export interface SiteContent {
+  blocks: SiteTextBlock[];
+}
+
 export interface Archive {
   introduction: string;
   memories: Memory[];
+  siteContent?: SiteContent;
 }
 
 export interface SaveArchiveRequest {

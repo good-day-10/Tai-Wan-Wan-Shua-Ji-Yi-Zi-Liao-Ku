@@ -4,6 +4,7 @@ export const archiveTable = pgTable("archive", {
   id: text("id").primaryKey(),
   introduction: text("introduction").notNull(),
   memories: jsonb("memories").notNull(),
+  siteContent: jsonb("site_content"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

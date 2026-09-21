@@ -121,9 +121,48 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Memory"
+        siteContent:
+          $ref: "#/components/schemas/SiteContent"
       required:
         - introduction
         - memories
+    SiteTextBlock:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        section:
+          type: string
+        html:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        align:
+          type: string
+      required:
+        - id
+        - label
+        - section
+        - html
+        - x
+        - y
+        - width
+        - align
+    SiteContent:
+      type: object
+      properties:
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SiteTextBlock"
+      required:
+        - blocks
     SaveArchiveRequest:
       type: object
       properties:

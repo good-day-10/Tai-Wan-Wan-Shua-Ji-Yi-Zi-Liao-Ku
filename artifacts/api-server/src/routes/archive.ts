@@ -22,6 +22,7 @@ router.get("/archive", async (_req, res): Promise<void> => {
   const parsed = GetArchiveResponse.safeParse({
     introduction: archive.introduction,
     memories: archive.memories,
+    siteContent: archive.siteContent ?? undefined,
   });
   if (!parsed.success) {
     res.status(500).json({ error: "Saved archive data is invalid" });
@@ -49,12 +50,14 @@ router.put("/archive", async (req, res): Promise<void> => {
       id: ARCHIVE_ID,
       introduction: archive.introduction,
       memories: archive.memories,
+      siteContent: archive.siteContent ?? null,
     })
     .onConflictDoUpdate({
       target: archiveTable.id,
       set: {
         introduction: archive.introduction,
         memories: archive.memories,
+        siteContent: archive.siteContent ?? null,
         updatedAt: new Date(),
       },
     });

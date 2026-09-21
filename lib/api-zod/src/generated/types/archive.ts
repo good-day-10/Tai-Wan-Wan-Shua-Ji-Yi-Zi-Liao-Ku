@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Memory } from './memory';
+import type { SiteContent } from './siteContent';
 
 export interface Archive {
   introduction: string;
   memories: Memory[];
+  siteContent?: SiteContent;
 }
