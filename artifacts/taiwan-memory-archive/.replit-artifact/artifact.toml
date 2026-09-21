@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "台灣玩耍記憶資料庫"
+description = "一個溫暖、可瀏覽的台灣玩耍記憶資料庫，提供公開閱讀與密碼保護的內容編輯功能。"
+version = "1.0.0"
+id = "artifacts/taiwan-memory-archive"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24737
+
+[services.development]
+run = "pnpm --filter @workspace/taiwan-memory-archive run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/taiwan-memory-archive", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/taiwan-memory-archive/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24737"
+BASE_PATH = "/"

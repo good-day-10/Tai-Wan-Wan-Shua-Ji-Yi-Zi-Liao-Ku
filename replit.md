@@ -1,6 +1,6 @@
-# [Project name]
+# 台灣玩耍記憶資料庫
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+一個保存台灣童年遊戲、地方故事與跨世代口述記憶的公開瀏覽與編輯網站。
 
 ## Run & Operate
 
@@ -22,15 +22,21 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/taiwan-memory-archive/src/App.tsx` — 單頁網站、資料模型、瀏覽與編輯流程
+- `artifacts/taiwan-memory-archive/src/index.css` — archive 視覺主題、響應式樣式與動態效果
+- `artifacts/taiwan-memory-archive/public/archive-reference.png` — 使用者提供的概念參考圖
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- 第一版採前端單頁架構，不依賴後端 API。
+- 記憶內容以 localStorage 保存，讓編輯結果在重新整理後仍保留。
+- 編輯入口以密碼 `00000` 保護，解鎖後提供內容管理介面。
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- 公開瀏覽記憶索引、搜尋與分類篩選。
+- 開啟故事詳情與口述內容。
+- 以密碼解鎖後編輯網站介紹與記憶、新增收藏、刪除內容、保存或取消修改、鎖定編輯模式。
 
 ## User preferences
 
