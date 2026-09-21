@@ -16,9 +16,11 @@ type Memory = {
   storyteller: string;
   excerpt: string;
   story: string;
+  storyHtml?: string;
   color: string;
   mark: string;
   image?: string;
+  images?: string[];
 };
 
 type ArchiveData = { introduction: string; memories: Memory[] };
@@ -44,6 +46,54 @@ function loadArchive(): ArchiveData {
     if (stored) return JSON.parse(stored) as ArchiveData;
   } catch { /* use seed data when local storage is unavailable */ }
   return seedData;
+}
+
+function getMemoryImages(memory: Memory): string[] {
+  if (Array.isArray(memory.images)) return memory.images;
+  return memory.image ? [memory.image] : [];
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] ?? character);
+}
+
+function storyToHtml(story: string): string {
+  return story.split(/\n{2,}/).map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br />')}</p>`).join('');
+}
+
+function sanitizeStoryHtml(html: string): string {
+  const documentRoot = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html').body.firstElementChild;
+  if (!documentRoot) return '';
+  const allowedTags = new Set(['P', 'DIV', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'SPAN', 'FONT', 'UL', 'OL', 'LI']);
+  const allowedAttributes = new Set(['style', 'color', 'face', 'size']);
+  const cleanNode = (node: Node) => {
+    [...node.childNodes].forEach((child) => {
+      if (child.nodeType !== Node.ELEMENT_NODE) return;
+      const element = child as HTMLElement;
+      if (!allowedTags.has(element.tagName)) {
+        while (element.firstChild) node.insertBefore(element.firstChild, element);
+        node.removeChild(element);
+        return;
+      }
+      [...element.attributes].forEach((attribute) => {
+        if (!allowedAttributes.has(attribute.name.toLowerCase())) element.removeAttribute(attribute.name);
+      });
+      if (element.hasAttribute('style')) {
+        const safeStyle = element.getAttribute('style')?.split(';').map((rule) => rule.trim()).filter((rule) => /^(color|font-size|font-family|font-weight|font-style|text-decoration)\s*:/i.test(rule) && !/[<>]/.test(rule)).join('; ');
+        if (safeStyle) element.setAttribute('style', safeStyle);
+        else element.removeAttribute('style');
+      }
+      cleanNode(element);
+    });
+  };
+  cleanNode(documentRoot);
+  return documentRoot.innerHTML;
+}
+
+function storyToPlainText(html: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = sanitizeStoryHtml(html);
+  return (container.textContent ?? '').replace(/\u00a0/g, ' ').trim();
 }
 
 function Header() {
