@@ -126,6 +126,22 @@ button { cursor: pointer; }
 .input-archive { width: 100%; border: 1px solid hsl(var(--border)); border-radius: .65rem; padding: .75rem .85rem; background: hsl(var(--card)); color: hsl(var(--foreground)); }
 .search-input { padding-left: 2.75rem; }
 .input-archive:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / .13); outline: none; }
+.rich-toolbar { position: sticky; top: 0; z-index: 1; }
+.rich-tool { display: inline-flex; min-width: 2rem; height: 2rem; align-items: center; justify-content: center; border-radius: .45rem; padding: 0 .45rem; color: hsl(var(--foreground)); transition: background .2s, color .2s; }
+.rich-tool:hover { background: hsl(var(--card)); color: hsl(var(--primary)); }
+.rich-select { height: 2rem; max-width: 7.5rem; border: 1px solid hsl(var(--border)); border-radius: .45rem; background: hsl(var(--card)); padding: 0 .45rem; color: hsl(var(--foreground)); font-size: .75rem; }
+.rich-color { display: inline-flex; height: 2rem; width: 2rem; cursor: pointer; align-items: center; justify-content: center; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: .45rem; background: hsl(var(--card)); }
+.rich-color input { height: 1.35rem; width: 1.35rem; cursor: pointer; border: 0; background: transparent; padding: 0; }
+.color-preset { height: 2rem; width: 2rem; border: 2px solid transparent; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.4); transition: transform .2s, box-shadow .2s; }
+.color-preset:hover { transform: translateY(-1px); }
+.color-preset-selected { box-shadow: 0 0 0 2px hsl(var(--card)), 0 0 0 4px hsl(var(--primary)); }
+.rich-editor { min-height: 280px; }
+.rich-editor:empty::before { content: attr(data-placeholder); color: hsl(var(--muted-foreground)); pointer-events: none; }
+.rich-editor p { margin: 0 0 1rem; }
+.rich-editor p:last-child { margin-bottom: 0; }
+.rich-story p { margin: 0 0 1.25rem; }
+.rich-story p:last-child { margin-bottom: 0; }
+.rich-story ul, .rich-story ol { margin: 0 0 1.25rem 1.25rem; }
 .btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.72rem 1rem; border-radius:999px; background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); font-weight:700; border:1px solid hsl(var(--primary)); transition: transform .2s, background .2s; }
 .btn-primary:hover { transform: translateY(-1px); background: hsl(186 56% 25%); }
 .btn-ghost { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; padding:.65rem .9rem; border-radius:999px; color:inherit; font-weight:600; border:1px solid transparent; transition: background .2s; }

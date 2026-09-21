@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, ImagePlus, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -147,11 +147,12 @@ function Hero({ introduction, onExplore }: { introduction: string; onExplore: ()
 }
 
 function MemoryCard({ memory, onOpen }: { memory: Memory; onOpen: (memory: Memory) => void }) {
+  const images = getMemoryImages(memory);
   return <article className="memory-card overflow-hidden rounded-[1.15rem] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))]" data-testid={`card-memory-${memory.id}`}>
     <button onClick={() => onOpen(memory)} className="block w-full text-left" data-testid={`button-open-memory-${memory.id}`}>
       <div className="memory-image flex flex-col justify-between p-5" style={{ background: memory.color }}>
-        {memory.image && <img src={memory.image} alt="" className="absolute inset-0 h-full w-full object-cover" />}
-        {memory.image && <div className="memory-image-overlay absolute inset-0" aria-hidden="true" />}
+        {images[0] && <img src={images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+        {images[0] && <div className="memory-image-overlay absolute inset-0" aria-hidden="true" />}
         <div className="relative z-[1] flex justify-between text-white/80"><span className="card-stamp">{memory.mark}</span><span className="text-[10px] tracking-[.18em]">NO. {memory.id}</span></div>
         <div className="relative z-[1]"><div className="mb-3 flex items-center gap-2 text-xs text-white/75"><MapPin size={13} />{memory.location}</div><h3 className="serif text-2xl font-bold leading-snug text-white">{memory.title}</h3></div>
       </div>
@@ -187,11 +188,12 @@ function AboutSection() {
 }
 
 function MemoryModal({ memory, onClose }: { memory: Memory; onClose: () => void }) {
+  const images = getMemoryImages(memory);
   return <div className="detail-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="memory-detail-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="modal-panel max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-t-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-2xl sm:rounded-3xl">
       <div className="flex items-center justify-between p-5 sm:p-7"><div className="eyebrow text-[hsl(var(--primary))]">MEMORY NO. {memory.id} / 故事詳頁</div><button onClick={onClose} aria-label="關閉故事詳頁" className="btn-ghost" data-testid="button-close-memory"><X size={20} /></button></div>
-       {memory.image ? <div className="memory-detail-image relative mx-5 h-44 overflow-hidden rounded-2xl sm:mx-7 sm:h-64"><img src={memory.image} alt={`${memory.title} 的故事圖片`} className="h-full w-full object-cover" /><div className="memory-image-overlay absolute inset-0" aria-hidden="true" /></div> : <div className="mx-5 h-2 rounded-full sm:mx-7" style={{ background: memory.color }} />}
-      <div className="grid gap-8 p-5 sm:p-10 lg:grid-cols-[.72fr 1.28fr]"><div><p className="text-sm text-[hsl(var(--muted-foreground))]">{memory.location}　/　{memory.era}</p><h2 id="memory-detail-title" className="display-title mt-4 text-4xl font-bold">{memory.title}</h2><div className="mt-8 border-l-2 border-[hsl(var(--secondary))] pl-5"><p className="quote-mark">“</p><p className="serif text-xl leading-loose">{memory.excerpt}</p></div><p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]">說故事的人<br /><strong className="mt-1 block text-base text-[hsl(var(--foreground))]">{memory.storyteller}</strong></p></div><div><div className="whitespace-pre-line text-base leading-[2.1] text-[hsl(var(--foreground)/.82)]">{memory.story}</div><div className="mt-10 border-t border-[hsl(var(--border))] pt-5 text-xs text-[hsl(var(--muted-foreground))]">分類：{memory.category}</div></div></div>
+       {images[0] ? <div className="memory-detail-image relative mx-5 h-44 overflow-hidden rounded-2xl sm:mx-7 sm:h-64"><img src={images[0]} alt={`${memory.title} 的故事圖片`} className="h-full w-full object-cover" /><div className="memory-image-overlay absolute inset-0" aria-hidden="true" /></div> : <div className="mx-5 h-2 rounded-full sm:mx-7" style={{ background: memory.color }} />}
+      <div className="grid gap-8 p-5 sm:p-10 lg:grid-cols-[.72fr 1.28fr]"><div><p className="text-sm text-[hsl(var(--muted-foreground))]">{memory.location}　/　{memory.era}</p><h2 id="memory-detail-title" className="display-title mt-4 text-4xl font-bold">{memory.title}</h2><div className="mt-8 border-l-2 border-[hsl(var(--secondary))] pl-5"><p className="quote-mark">“</p><p className="serif text-xl leading-loose">{memory.excerpt}</p></div><p className="mt-8 text-sm text-[hsl(var(--muted-foreground))]">說故事的人<br /><strong className="mt-1 block text-base text-[hsl(var(--foreground))]">{memory.storyteller}</strong></p></div><div><div className="rich-story text-base leading-[2.1]" dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(memory.storyHtml ?? storyToHtml(memory.story)) }} />{images.length > 1 && <div className="mt-10 grid grid-cols-2 gap-3 border-t border-[hsl(var(--border))] pt-6 sm:grid-cols-3">{images.slice(1).map((image, index) => <img key={`${memory.id}-image-${index + 1}`} src={image} alt={`${memory.title} 的故事圖片 ${index + 2}`} className="aspect-square w-full rounded-xl object-cover" />)}</div>}<div className="mt-10 border-t border-[hsl(var(--border))] pt-5 text-xs text-[hsl(var(--muted-foreground))]">分類：{memory.category}</div></div></div>
     </div>
   </div>;
 }
@@ -230,35 +232,121 @@ function imageToDataUrl(file: File): Promise<string> {
   });
 }
 
-function MemoryImageField({ image, inputId, onChange, onClear }: { image?: string; inputId: string; onChange: (value: string) => void; onClear: () => void }) {
+function MemoryImagesField({ images, inputId, onChange }: { images: string[]; inputId: string; onChange: (values: string[]) => void }) {
   const [error, setError] = useState('');
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    if (!file) return;
+    if (!files.length) return;
     setError('');
-    if (!file.type.startsWith('image/')) {
-      setError('請選擇圖片檔案。');
+    const invalidFile = files.find((file) => !file.type.startsWith('image/'));
+    if (invalidFile) {
+      setError('請只選擇圖片檔案。');
       return;
     }
-    if (file.size > 12 * 1024 * 1024) {
-      setError('圖片大小請控制在 12 MB 以內。');
+    if (files.some((file) => file.size > 12 * 1024 * 1024)) {
+      setError('單張圖片大小請控制在 12 MB 以內。');
       return;
     }
     try {
-      onChange(await imageToDataUrl(file));
+      onChange([...images, ...(await Promise.all(files.map(imageToDataUrl)))]);
     } catch {
-      setError('圖片讀取失敗，請換一張圖片再試一次。');
+      setError('圖片讀取失敗，請換幾張圖片再試一次。');
     }
   };
 
   return <div className="mt-7 rounded-2xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--background)/.5)] p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="text-sm font-semibold">故事圖片</p><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">圖片會用在故事卡片與故事詳情的背景。</p></div>
-      <label htmlFor={inputId} className="btn-outline cursor-pointer px-3 py-2 text-xs"><ImagePlus size={15} /> {image ? '更換圖片' : '上傳圖片'}<input id={inputId} type="file" accept="image/*" onChange={handleFileChange} className="sr-only" /></label>
+      <div><p className="text-sm font-semibold">故事圖片</p><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">第一張圖片會用在故事卡片與詳情背景，也可以一次上傳多張。</p></div>
+      <label htmlFor={inputId} className="btn-outline cursor-pointer px-3 py-2 text-xs"><ImagePlus size={15} /> 新增圖片<input id={inputId} type="file" accept="image/*" multiple onChange={handleFileChange} className="sr-only" /></label>
     </div>
-    {image ? <div className="relative mt-4 overflow-hidden rounded-xl border border-[hsl(var(--border))]"><img src={image} alt="故事圖片預覽" className="h-48 w-full object-cover sm:h-56" /><div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-[hsl(var(--primary)/.78)] px-3 py-2 text-xs text-white backdrop-blur-sm"><span>目前圖片</span><button type="button" onClick={onClear} className="rounded-full px-2 py-1 font-semibold hover:bg-white/15">移除圖片</button></div></div> : <div className="mt-4 flex min-h-28 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-5 text-center text-xs leading-relaxed text-[hsl(var(--muted-foreground))]"><div><ImagePlus className="mx-auto mb-2 text-[hsl(var(--secondary))]" size={22} /><p>選擇一張圖片，讓這段故事有自己的畫面。</p></div></div>}
+    {images.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={`${inputId}-${index}`} className="group relative overflow-hidden rounded-xl border border-[hsl(var(--border))]"><img src={image} alt={`故事圖片 ${index + 1} 預覽`} className="aspect-[4/3] w-full object-cover" /><div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-[hsl(var(--primary)/.78)] px-2 py-1.5 text-[11px] text-white backdrop-blur-sm"><span>{index === 0 ? '背景圖片' : `圖片 ${index + 1}`}</span><button type="button" onClick={() => onChange(images.filter((_, imageIndex) => imageIndex !== index))} className="rounded-full px-1.5 py-0.5 font-semibold hover:bg-white/15">移除</button></div></div>)}</div> : <div className="mt-4 flex min-h-28 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-5 text-center text-xs leading-relaxed text-[hsl(var(--muted-foreground))]"><div><ImagePlus className="mx-auto mb-2 text-[hsl(var(--secondary))]" size={22} /><p>選擇一張或多張圖片，讓這段故事有自己的畫面。</p></div></div>}
     {error && <p className="mt-3 text-xs text-[hsl(var(--destructive))]" role="alert">{error}</p>}
+  </div>;
+}
+
+function MemoryImageField({ image, inputId, onChange, onClear }: { image?: string; inputId: string; onChange: (value: string) => void; onClear: () => void }) {
+  return <MemoryImagesField images={image ? [image] : []} inputId={inputId} onChange={(values) => onChange(values[0] ?? '')} />;
+}
+
+function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const setEditorRef = (node: HTMLDivElement | null) => {
+    setElement(node);
+  };
+  const runCommand = (command: string, commandValue?: string) => {
+    element?.focus();
+    document.execCommand(command, false, commandValue);
+    if (element) onChange(sanitizeStoryHtml(element.innerHTML));
+  };
+  const handleInput = () => {
+    if (element) onChange(sanitizeStoryHtml(element.innerHTML));
+  };
+  const keepSelection = (event: MouseEvent<HTMLButtonElement | HTMLSelectElement | HTMLInputElement>) => {
+    event.preventDefault();
+  };
+  const applyColor = (event: ChangeEvent<HTMLInputElement>) => runCommand('foreColor', event.target.value);
+  const initialHtml = value || '<p><br /></p>';
+
+  useEffect(() => {
+    if (element && element.innerHTML !== value) element.innerHTML = initialHtml;
+  }, [element, initialHtml, value]);
+
+  return <div className="rich-editor-shell mt-2 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+    <div className="rich-toolbar flex flex-wrap items-center gap-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] p-2">
+      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('bold')} className="rich-tool font-bold" title="粗體">B</button>
+      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('italic')} className="rich-tool italic" title="斜體">I</button>
+      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('underline')} className="rich-tool underline" title="底線">U</button>
+      <span className="mx-1 h-5 w-px bg-[hsl(var(--border))]" />
+      <select defaultValue="Noto Sans TC" onMouseDown={keepSelection} onChange={(event) => runCommand('fontName', event.target.value)} className="rich-select" aria-label="字體">
+        <option value="Noto Sans TC">無襯線</option>
+        <option value="Noto Serif TC">襯線</option>
+        <option value="Georgia">Georgia</option>
+        <option value="monospace">等寬</option>
+      </select>
+      <select defaultValue="3" onMouseDown={keepSelection} onChange={(event) => runCommand('fontSize', event.target.value)} className="rich-select" aria-label="文字大小">
+        <option value="2">小</option>
+        <option value="3">標準</option>
+        <option value="4">大</option>
+        <option value="5">特大</option>
+      </select>
+      <label className="rich-color" title="文字顏色"><span className="sr-only">文字顏色</span><input type="color" defaultValue="#15313d" onMouseDown={keepSelection} onChange={applyColor} /></label>
+      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('removeFormat')} className="rich-tool text-xs" title="清除格式">清除格式</button>
+    </div>
+    <div ref={setEditorRef} contentEditable suppressContentEditableWarning onInput={handleInput} className="rich-editor min-h-[280px] p-4 text-base leading-loose focus:outline-none" data-placeholder="在這裡寫下故事…" role="textbox" aria-label="編輯完整故事" />
+  </div>;
+}
+
+function LegacyEditor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => void; onCancel: () => void; onLock: () => void }) {
+  const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const selected = draft.memories.find((memory) => memory.id === selectedId);
+  const updateSelected = (field: keyof Memory, value: string) => { if (!selectedId) return; setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, [field]: value } : memory) })); };
+  const updateSelectedImages = (values: string[]) => { if (!selectedId) return; setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, images: values, image: undefined } : memory) })); };
+  const removeSelected = () => { if (!selectedId || !window.confirm('確定要刪除這則記憶嗎？刪除後請按「保存變更」才會生效。')) return; setDraft((current) => ({ ...current, memories: current.memories.filter((memory) => memory.id !== selectedId) })); setSelectedId(null); };
+  const addNew = () => { const nextId = String(Math.max(0, ...draft.memories.map((memory) => Number(memory.id))) + 1).padStart(2, '0'); const story = '請在這裡寫下完整的故事。可以記錄遊戲怎麼開始、誰和你一起玩，以及那時候的天氣和聲音。'; const memory: Memory = { id: nextId, title: '一段還沒命名的記憶', location: '台灣・', era: '年代待補', category: '童玩', storyteller: '說故事的人', excerpt: '在這裡寫下一句讓人想繼續聽的話。', story, storyHtml: storyToHtml(story), color: '#3e8090', mark: '新藏', images: [], }; setDraft((current) => ({ ...current, memories: [...current.memories, memory] })); setSelectedId(nextId); setShowNew(false); };
+  return <div className="fixed inset-0 z-40 overflow-y-auto bg-[hsl(var(--background))]"><div className="mx-auto min-h-dvh max-w-7xl px-5 pb-20 lg:px-8"><div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8"><div className="flex items-center justify-between gap-3"><div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div><div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button onClick={() => { onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); }} className="btn-primary text-xs" data-testid="button-save-archive">{saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div></div></div><div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]"><aside><div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2><textarea value={draft.introduction} onChange={(event) => setDraft({ ...draft, introduction: event.target.value })} className="mt-5 min-h-[190px] w-full resize-y rounded-xl border border-white/20 bg-white/10 p-4 text-sm leading-relaxed text-white outline-none placeholder:text-white/45 focus:border-[hsl(var(--accent))]" aria-label="編輯資料庫介紹" data-testid="textarea-introduction" /><p className="mt-3 text-xs text-white/55">這段文字會出現在首頁的第一個畫面。</p></div><div className="mt-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5"><div className="flex items-center justify-between"><div><p className="eyebrow text-[hsl(var(--primary))]">COLLECTION</p><p className="mt-1 font-bold">記憶清單 <span className="text-[hsl(var(--muted-foreground))]">({draft.memories.length})</span></p></div><button onClick={() => setShowNew(true)} className="btn-primary px-3 py-2 text-xs" data-testid="button-add-memory"><Plus size={15} /> 新增</button></div><div className="mt-4 space-y-1">{draft.memories.map((memory) => <button key={memory.id} onClick={() => setSelectedId(memory.id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${selectedId === memory.id ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted)/.65)]'}`} data-testid={`button-edit-memory-${memory.id}`}><span className="h-8 w-8 rounded-lg bg-cover bg-center" style={{ backgroundColor: memory.color, ...(memory.image ? { backgroundImage: `url(${memory.image})` } : {}) }} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{memory.title}</span><span className="block text-xs text-[hsl(var(--muted-foreground))]">{memory.location}</span></span><ChevronDown size={14} className="-rotate-90 text-[hsl(var(--muted-foreground))]" /></button>)}</div></div></aside><main>{selected ? <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:p-8"><div className="mb-7 flex items-start justify-between"><div><p className="eyebrow text-[hsl(var(--primary))]">EDIT MEMORY / 編輯故事</p><h2 className="serif mt-2 text-3xl font-bold">{selected.title}</h2></div><button onClick={removeSelected} className="btn-ghost text-[hsl(var(--destructive))]" aria-label="刪除此記憶" data-testid={`button-delete-memory-${selected.id}`}><Trash2 size={17} /> <span className="hidden sm:inline">刪除</span></button></div><div className="grid gap-5 sm:grid-cols-2">{[['title','標題'],['location','地點'],['era','年代'],['category','分類'],['storyteller','說故事的人'],['mark','卡片標記'],['color','卡片色彩']].map(([field, label]) => <label key={field} className="text-sm font-semibold">{label}<input value={String(selected[field as keyof Memory])} onChange={(event) => updateSelected(field as keyof Memory, event.target.value)} className="input-archive mt-2" data-testid={`input-memory-${field}-${selected.id}`} /></label>)}</div><label className="mt-5 block text-sm font-semibold">一句話摘錄<textarea value={selected.excerpt} onChange={(event) => updateSelected('excerpt', event.target.value)} className="input-archive mt-2 min-h-[95px] resize-y" data-testid={`textarea-memory-excerpt-${selected.id}`} /></label><label className="mt-5 block text-sm font-semibold">完整故事<textarea value={selected.story} onChange={(event) => updateSelected('story', event.target.value)} className="input-archive mt-2 min-h-[250px] resize-y leading-loose" data-testid={`textarea-memory-story-${selected.id}`} /></label><MemoryImageField image={selected.image} inputId={`memory-image-${selected.id}`} onChange={(value) => updateSelected('image', value)} onClear={() => updateSelected('image', '')} /><p className="mt-6 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Eye size={14} /> 編輯完成後，請按右上角「保存變更」讓首頁看見最新內容。</p></div> : <div className="flex min-h-[430px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><BookOpen className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">選一則記憶開始整理</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">或從左側新增一個故事。</p></div></div>}</main></div></div>{showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /> </button></div></div></div>}</div>;
+}
+
+const cardColorOptions = [
+  { value: '#cf7657', label: '赭橘' },
+  { value: '#3e8090', label: '湖藍' },
+  { value: '#7d8e58', label: '苔綠' },
+  { value: '#b98a35', label: '金黃' },
+  { value: '#a25b53', label: '磚紅' },
+  { value: '#6c6a8d', label: '暮紫' },
+];
+
+function CardColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <div className="mt-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background)/.45)] p-3">
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold"><input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-9 w-12 cursor-pointer rounded-lg border-0 bg-transparent p-0" aria-label="自訂卡片色彩" /><span>自訂顏色</span></label>
+      <span className="text-xs text-[hsl(var(--muted-foreground))]">或選擇預設色</span>
+    </div>
+    <div className="mt-3 flex flex-wrap gap-2">{cardColorOptions.map((option) => <button key={option.value} type="button" onClick={() => onChange(option.value)} className={`color-preset ${value.toLowerCase() === option.value ? 'color-preset-selected' : ''}`} style={{ backgroundColor: option.value }} aria-label={`選擇${option.label}`} title={option.label} />)}</div>
+    <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">目前選擇：{cardColorOptions.find((option) => option.value === value.toLowerCase())?.label ?? '自訂顏色'}</p>
   </div>;
 }
 
@@ -268,10 +356,63 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
   const [showNew, setShowNew] = useState(false);
   const [saved, setSaved] = useState(false);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
-  const updateSelected = (field: keyof Memory, value: string) => { if (!selectedId) return; setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, [field]: value } : memory) })); };
-  const removeSelected = () => { if (!selectedId || !window.confirm('確定要刪除這則記憶嗎？刪除後請按「保存變更」才會生效。')) return; setDraft((current) => ({ ...current, memories: current.memories.filter((memory) => memory.id !== selectedId) })); setSelectedId(null); };
-  const addNew = () => { const nextId = String(Math.max(0, ...draft.memories.map((memory) => Number(memory.id))) + 1).padStart(2, '0'); const memory: Memory = { id: nextId, title: '一段還沒命名的記憶', location: '台灣・', era: '年代待補', category: '童玩', storyteller: '說故事的人', excerpt: '在這裡寫下一句讓人想繼續聽的話。', story: '請在這裡寫下完整的故事。可以記錄遊戲怎麼開始、誰和你一起玩，以及那時候的天氣和聲音。', color: '#3e8090', mark: '新藏', }; setDraft((current) => ({ ...current, memories: [...current.memories, memory] })); setSelectedId(nextId); setShowNew(false); };
-  return <div className="fixed inset-0 z-40 overflow-y-auto bg-[hsl(var(--background))]"><div className="mx-auto min-h-dvh max-w-7xl px-5 pb-20 lg:px-8"><div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8"><div className="flex items-center justify-between gap-3"><div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div><div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button onClick={() => { onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); }} className="btn-primary text-xs" data-testid="button-save-archive">{saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div></div></div><div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]"><aside><div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2><textarea value={draft.introduction} onChange={(event) => setDraft({ ...draft, introduction: event.target.value })} className="mt-5 min-h-[190px] w-full resize-y rounded-xl border border-white/20 bg-white/10 p-4 text-sm leading-relaxed text-white outline-none placeholder:text-white/45 focus:border-[hsl(var(--accent))]" aria-label="編輯資料庫介紹" data-testid="textarea-introduction" /><p className="mt-3 text-xs text-white/55">這段文字會出現在首頁的第一個畫面。</p></div><div className="mt-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5"><div className="flex items-center justify-between"><div><p className="eyebrow text-[hsl(var(--primary))]">COLLECTION</p><p className="mt-1 font-bold">記憶清單 <span className="text-[hsl(var(--muted-foreground))]">({draft.memories.length})</span></p></div><button onClick={() => setShowNew(true)} className="btn-primary px-3 py-2 text-xs" data-testid="button-add-memory"><Plus size={15} /> 新增</button></div><div className="mt-4 space-y-1">{draft.memories.map((memory) => <button key={memory.id} onClick={() => setSelectedId(memory.id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${selectedId === memory.id ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted)/.65)]'}`} data-testid={`button-edit-memory-${memory.id}`}><span className="h-8 w-8 rounded-lg bg-cover bg-center" style={{ backgroundColor: memory.color, ...(memory.image ? { backgroundImage: `url(${memory.image})` } : {}) }} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{memory.title}</span><span className="block text-xs text-[hsl(var(--muted-foreground))]">{memory.location}</span></span><ChevronDown size={14} className="-rotate-90 text-[hsl(var(--muted-foreground))]" /></button>)}</div></div></aside><main>{selected ? <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:p-8"><div className="mb-7 flex items-start justify-between"><div><p className="eyebrow text-[hsl(var(--primary))]">EDIT MEMORY / 編輯故事</p><h2 className="serif mt-2 text-3xl font-bold">{selected.title}</h2></div><button onClick={removeSelected} className="btn-ghost text-[hsl(var(--destructive))]" aria-label="刪除此記憶" data-testid={`button-delete-memory-${selected.id}`}><Trash2 size={17} /> <span className="hidden sm:inline">刪除</span></button></div><div className="grid gap-5 sm:grid-cols-2">{[['title','標題'],['location','地點'],['era','年代'],['category','分類'],['storyteller','說故事的人'],['mark','卡片標記'],['color','卡片色彩']].map(([field, label]) => <label key={field} className="text-sm font-semibold">{label}<input value={String(selected[field as keyof Memory])} onChange={(event) => updateSelected(field as keyof Memory, event.target.value)} className="input-archive mt-2" data-testid={`input-memory-${field}-${selected.id}`} /></label>)}</div><label className="mt-5 block text-sm font-semibold">一句話摘錄<textarea value={selected.excerpt} onChange={(event) => updateSelected('excerpt', event.target.value)} className="input-archive mt-2 min-h-[95px] resize-y" data-testid={`textarea-memory-excerpt-${selected.id}`} /></label><label className="mt-5 block text-sm font-semibold">完整故事<textarea value={selected.story} onChange={(event) => updateSelected('story', event.target.value)} className="input-archive mt-2 min-h-[250px] resize-y leading-loose" data-testid={`textarea-memory-story-${selected.id}`} /></label><MemoryImageField image={selected.image} inputId={`memory-image-${selected.id}`} onChange={(value) => updateSelected('image', value)} onClear={() => updateSelected('image', '')} /><p className="mt-6 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Eye size={14} /> 編輯完成後，請按右上角「保存變更」讓首頁看見最新內容。</p></div> : <div className="flex min-h-[430px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><BookOpen className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">選一則記憶開始整理</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">或從左側新增一個故事。</p></div></div>}</main></div></div>{showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /> </button></div></div></div>}</div>;
+  const updateSelected = (field: keyof Memory, value: string) => {
+    if (!selectedId) return;
+    setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, [field]: value } : memory) }));
+  };
+  const updateSelectedImages = (values: string[]) => {
+    if (!selectedId) return;
+    setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, images: values, image: undefined } : memory) }));
+  };
+  const removeSelected = () => {
+    if (!selectedId || !window.confirm('確定要刪除這則記憶嗎？刪除後請按「保存變更」才會生效。')) return;
+    setDraft((current) => ({ ...current, memories: current.memories.filter((memory) => memory.id !== selectedId) }));
+    setSelectedId(null);
+  };
+  const addNew = () => {
+    const nextId = String(Math.max(0, ...draft.memories.map((memory) => Number(memory.id))) + 1).padStart(2, '0');
+    const story = '請在這裡寫下完整的故事。可以記錄遊戲怎麼開始、誰和你一起玩，以及那時候的天氣和聲音。';
+    const memory: Memory = { id: nextId, title: '一段還沒命名的記憶', location: '台灣・', era: '年代待補', category: '童玩', storyteller: '說故事的人', excerpt: '在這裡寫下一句讓人想繼續聽的話。', story, storyHtml: storyToHtml(story), color: '#3e8090', mark: '新藏', images: [] };
+    setDraft((current) => ({ ...current, memories: [...current.memories, memory] }));
+    setSelectedId(nextId);
+    setShowNew(false);
+  };
+
+  return <div className="fixed inset-0 z-40 overflow-y-auto bg-[hsl(var(--background))]">
+    <div className="mx-auto min-h-dvh max-w-7xl px-5 pb-20 lg:px-8">
+      <div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8">
+        <div className="flex items-center justify-between gap-3">
+          <div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div>
+          <div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button onClick={() => { onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); }} className="btn-primary text-xs" data-testid="button-save-archive">{saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
+        </div>
+      </div>
+      <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
+        <aside>
+          <div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]">
+            <p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2>
+            <textarea value={draft.introduction} onChange={(event) => setDraft({ ...draft, introduction: event.target.value })} className="mt-5 min-h-[190px] w-full resize-y rounded-xl border border-white/20 bg-white/10 p-4 text-sm leading-relaxed text-white outline-none placeholder:text-white/45 focus:border-[hsl(var(--accent))]" aria-label="編輯資料庫介紹" data-testid="textarea-introduction" />
+            <p className="mt-3 text-xs text-white/55">這段文字會出現在首頁的第一個畫面。</p>
+          </div>
+          <div className="mt-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+            <div className="flex items-center justify-between"><div><p className="eyebrow text-[hsl(var(--primary))]">COLLECTION</p><p className="mt-1 font-bold">記憶清單 <span className="text-[hsl(var(--muted-foreground))]">({draft.memories.length})</span></p></div><button onClick={() => setShowNew(true)} className="btn-primary px-3 py-2 text-xs" data-testid="button-add-memory"><Plus size={15} /> 新增</button></div>
+            <div className="mt-4 space-y-1">{draft.memories.map((memory) => { const thumbnail = getMemoryImages(memory)[0]; return <button key={memory.id} onClick={() => setSelectedId(memory.id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${selectedId === memory.id ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted)/.65)]'}`} data-testid={`button-edit-memory-${memory.id}`}><span className="h-8 w-8 rounded-lg bg-cover bg-center" style={{ backgroundColor: memory.color, ...(thumbnail ? { backgroundImage: `url(${thumbnail})` } : {}) }} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{memory.title}</span><span className="block text-xs text-[hsl(var(--muted-foreground))]">{memory.location}</span></span><ChevronDown size={14} className="-rotate-90 text-[hsl(var(--muted-foreground))]" /></button>; })}</div>
+          </div>
+        </aside>
+        <main>
+          {selected ? <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 sm:p-8">
+            <div className="mb-7 flex items-start justify-between"><div><p className="eyebrow text-[hsl(var(--primary))]">EDIT MEMORY / 編輯故事</p><h2 className="serif mt-2 text-3xl font-bold">{selected.title}</h2></div><button onClick={removeSelected} className="btn-ghost text-[hsl(var(--destructive))]" aria-label="刪除此記憶" data-testid={`button-delete-memory-${selected.id}`}><Trash2 size={17} /> <span className="hidden sm:inline">刪除</span></button></div>
+            <div className="grid gap-5 sm:grid-cols-2">{[['title', '標題'], ['location', '地點'], ['era', '年代'], ['category', '分類'], ['storyteller', '說故事的人'], ['mark', '卡片標記']].map(([field, label]) => <label key={field} className="text-sm font-semibold">{label}<input value={String(selected[field as keyof Memory] ?? '')} onChange={(event) => updateSelected(field as keyof Memory, event.target.value)} className="input-archive mt-2" data-testid={`input-memory-${field}-${selected.id}`} /></label>)}</div>
+            <div className="mt-5"><p className="text-sm font-semibold">卡片色彩</p><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">這是卡片上方的背景色；若有故事圖片，圖片會優先顯示。</p><CardColorPicker value={selected.color} onChange={(value) => updateSelected('color', value)} /></div>
+            <label className="mt-5 block text-sm font-semibold">一句話摘錄<textarea value={selected.excerpt} onChange={(event) => updateSelected('excerpt', event.target.value)} className="input-archive mt-2 min-h-[95px] resize-y" data-testid={`textarea-memory-excerpt-${selected.id}`} /></label>
+            <div className="mt-5"><p className="text-sm font-semibold">完整故事</p><RichTextEditor key={selected.id} value={selected.storyHtml ?? storyToHtml(selected.story)} onChange={(html) => { updateSelected('storyHtml', html); updateSelected('story', storyToPlainText(html)); }} /></div>
+            <MemoryImagesField images={getMemoryImages(selected)} inputId={`memory-images-${selected.id}`} onChange={updateSelectedImages} />
+            <p className="mt-6 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Eye size={14} /> 編輯完成後，請按右上角「保存變更」讓首頁看見最新內容。</p>
+          </div> : <div className="flex min-h-[430px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><BookOpen className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">選一則記憶開始整理</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">或從左側新增一個故事。</p></div></div>}
+        </main>
+      </div>
+    </div>
+    {showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /></button></div></div></div>}
+  </div>;
 }
 
 function Footer({ onEdit }: { onEdit: () => void }) {
