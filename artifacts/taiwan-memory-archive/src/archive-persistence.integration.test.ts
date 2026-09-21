@@ -3,12 +3,17 @@ import test from 'node:test';
 import { defaultSiteBlocks } from './site-content';
 
 const apiBaseUrl = (process.env.ARCHIVE_TEST_BASE_URL ?? 'http://localhost:80/api').replace(/\/$/, '');
-const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1';
+const testSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE;
+const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1' && Boolean(testSessionCookie);
 
 async function requestArchive(options?: RequestInit): Promise<Record<string, unknown>> {
   const response = await fetch(`${apiBaseUrl}/archive`, {
     ...options,
-    headers: { 'content-type': 'application/json', ...(options?.headers ?? {}) },
+    headers: {
+      'content-type': 'application/json',
+      ...(testSessionCookie ? { cookie: testSessionCookie } : {}),
+      ...(options?.headers ?? {}),
+    },
   });
   const body = (await response.json()) as Record<string, unknown>;
   assert.equal(response.ok, true, JSON.stringify(body));
@@ -37,7 +42,6 @@ test('saved page content is returned to separate visitor reads', { skip: !should
     await requestArchive({
       method: 'PUT',
       body: JSON.stringify({
-        editorPassword: '00000',
         archive: { ...original, siteContent: { blocks: updatedBlocks } },
       }),
     });
@@ -68,7 +72,6 @@ test('saved page content is returned to separate visitor reads', { skip: !should
     await requestArchive({
       method: 'PUT',
       body: JSON.stringify({
-        editorPassword: '00000',
         archive: {
           ...original,
           ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
@@ -118,7 +121,7 @@ test('saved custom pages remain available to visitors and disappear after deleti
   try {
     await requestArchive({
       method: 'PUT',
-      body: JSON.stringify({ editorPassword: '00000', archive: archiveWithPage }),
+      body: JSON.stringify({ archive: archiveWithPage }),
     });
 
     const visitorReads = await Promise.all([
@@ -133,7 +136,6 @@ test('saved custom pages remain available to visitors and disappear after deleti
     await requestArchive({
       method: 'PUT',
       body: JSON.stringify({
-        editorPassword: '00000',
         archive: {
           ...original,
           siteContent: {
@@ -150,7 +152,6 @@ test('saved custom pages remain available to visitors and disappear after deleti
     await requestArchive({
       method: 'PUT',
       body: JSON.stringify({
-        editorPassword: '00000',
         archive: {
           ...original,
           ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),

@@ -72,7 +72,6 @@ export const GetArchiveResponse = zod.object({
  * @summary Save the shared memory archive
  */
 export const SaveArchiveBody = zod.object({
-  "editorPassword": zod.string(),
   "archive": zod.object({
   "introduction": zod.string(),
   "memories": zod.array(zod.object({
@@ -166,6 +165,18 @@ export const SaveArchiveResponse = zod.object({
 }))
 })).optional()
 }).optional()
+})
+
+
+/**
+ * @summary Unlock archive editing for the signed-in user
+ */
+export const UnlockEditorBody = zod.object({
+  "editorPassword": zod.string()
+})
+
+export const UnlockEditorResponse = zod.object({
+  "unlocked": zod.boolean()
 })
 
 

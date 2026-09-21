@@ -1,11 +1,33 @@
 import { eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { getAuth } from "@clerk/express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, archiveTable } from "@workspace/db";
-import { GetArchiveResponse, SaveArchiveBody, SaveArchiveResponse } from "@workspace/api-zod";
+import {
+  GetArchiveResponse,
+  SaveArchiveBody,
+  SaveArchiveResponse,
+  UnlockEditorBody,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const ARCHIVE_ID = "main";
-const EDITOR_PASSWORD = process.env.ARCHIVE_EDITOR_PASSWORD ?? "00000";
+const EDITOR_PASSWORD = process.env.ARCHIVE_EDITOR_PASSWORD;
+const EDITOR_COOKIE = "archive_editor_access";
+const EDITOR_COOKIE_MAX_AGE = 60 * 60 * 1000;
+
+function requireSignedIn(req: Request, res: Response, next: NextFunction): void {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  next();
+}
+
+function hasEditorAccess(req: Request): boolean {
+  const { userId } = getAuth(req);
+  return Boolean(userId && req.signedCookies?.[EDITOR_COOKIE] === userId);
+}
 
 router.get("/archive", async (_req, res): Promise<void> => {
   const [archive] = await db
@@ -32,14 +54,46 @@ router.get("/archive", async (_req, res): Promise<void> => {
   res.json(parsed.data);
 });
 
-router.put("/archive", async (req, res): Promise<void> => {
-  const parsed = SaveArchiveBody.safeParse(req.body);
+router.post("/editor/unlock", requireSignedIn, async (req, res): Promise<void> => {
+  const parsed = UnlockEditorBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json({ error: "Invalid editor credentials" });
+    return;
+  }
+  if (!EDITOR_PASSWORD) {
+    res.status(503).json({ error: "Editor access is not configured" });
     return;
   }
   if (parsed.data.editorPassword !== EDITOR_PASSWORD) {
-    res.status(401).json({ error: "Invalid editor password" });
+    res.status(401).json({ error: "Invalid editor credentials" });
+    return;
+  }
+
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  res.cookie(EDITOR_COOKIE, userId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    signed: true,
+    maxAge: EDITOR_COOKIE_MAX_AGE,
+    path: "/",
+  });
+  res.json({ unlocked: true });
+});
+
+router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
+  if (!hasEditorAccess(req)) {
+    res.status(401).json({ error: "Editor access required" });
+    return;
+  }
+
+  const parsed = SaveArchiveBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
     return;
   }
 

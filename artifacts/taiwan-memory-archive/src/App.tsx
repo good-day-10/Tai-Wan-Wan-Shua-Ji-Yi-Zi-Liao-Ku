@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getArchive as getSharedArchive, saveArchive as saveSharedArchive } from '@workspace/api-client-react';
+import { getArchive as getSharedArchive, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
+import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -245,7 +246,10 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
           </span>
           <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TAIWAN PLAY MEMORIES" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></span>
         </a>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost" aria-label={menuOpen ? '關閉導覽選單' : '開啟導覽選單'} aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
+        <div className="flex items-center gap-2">
+          <AuthControls />
+          <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost" aria-label={menuOpen ? '關閉導覽選單' : '開啟導覽選單'} aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
+        </div>
       </div>
       {menuOpen && <nav className="absolute right-5 top-[76px] w-[min(360px,calc(100vw-2.5rem))] rounded-2xl border border-white/15 bg-[hsl(var(--primary)/.98)] p-3 shadow-2xl backdrop-blur" aria-label="網站導覽">
         <p className="px-3 pb-2 pt-1 text-[10px] font-bold tracking-[.18em] text-[hsl(var(--accent))]">EXPLORE / 導覽</p>
@@ -255,6 +259,15 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
       </nav>}
     </header>
   );
+}
+
+function AuthControls() {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const { isLoaded, isSignedIn } = useAuth();
+  if (!isLoaded) return null;
+  return <div className="flex items-center">
+    {isSignedIn ? <UserButton /> : <a href={`${base}/sign-in`} className="btn-ghost text-xs" data-testid="link-sign-in">登入</a>}
+  </div>;
 }
 
 function PageTextBlock({ block, className = '' }: { block: SiteTextBlock; className?: string }) {
@@ -358,8 +371,24 @@ function MemoryModal({ memory, siteContent, onClose }: { memory: Memory; siteCon
 function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const submit = (event: FormEvent) => { event.preventDefault(); if (password === '00000') onUnlock(); else { setError('密碼不對，再試一次。提示：是五個 0。'); setPassword(''); } };
-  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">這裡是給資料庫守護者的入口。輸入五位數密碼，就可以整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" inputMode="numeric" maxLength={5} placeholder="請輸入 5 位數密碼" className="input-archive mt-2 text-center text-xl tracking-[.45em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" className="btn-primary mt-5 w-full" data-testid="button-submit-password">進入編輯模式 <ArrowRight size={16} /></button></form><p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p></div></div>;
+  const [submitting, setSubmitting] = useState(false);
+  const { isLoaded, isSignedIn } = useAuth();
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      await unlockEditor({ editorPassword: password });
+      onUnlock();
+    } catch {
+      setError('密碼錯誤，請再試一次。');
+      setPassword('');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2>{!isLoaded ? <p className="mt-7 text-sm text-[hsl(var(--muted-foreground))]">正在確認登入狀態…</p> : !isSignedIn ? <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">請先登入資料庫帳號，登入後才能輸入編輯密碼。</p><a href={`${base}/sign-in`} className="btn-primary mt-6 w-full" data-testid="link-gate-sign-in">先登入再編輯 <ArrowRight size={16} /></a></> : <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">登入已確認。輸入編輯密碼後，即可整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" placeholder="請輸入編輯密碼" className="input-archive mt-2 text-center text-xl tracking-[.2em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" disabled={submitting || password.length === 0} className="btn-primary mt-5 w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-password">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button></form></>}<p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p></div></div>;
 }
 
 function imageToDataUrl(file: File): Promise<string> {
@@ -788,7 +817,7 @@ function Home() {
   }, []);
   const saveArchive = async (data: ArchiveData) => {
     try {
-      const sharedArchive = await saveSharedArchive({ editorPassword: '00000', archive: data });
+      const sharedArchive = await saveSharedArchive({ archive: data });
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
       localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
@@ -807,11 +836,14 @@ function Home() {
 }
 
 function Router() {
-  return <ErrorBoundary><Switch><Route path="/" component={Home} /><Route path="/page/:slug" component={Home} /><Route component={NotFound} /></Switch></ErrorBoundary>;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return <ErrorBoundary><Switch><Route path="/sign-in/*?" component={() => <div className="min-h-dvh bg-[hsl(var(--muted))] p-5 sm:p-10"><SignIn routing="path" path={`${base}/sign-in`} signUpUrl={`${base}/sign-up`} fallbackRedirectUrl={base || '/'} /></div>} /><Route path="/sign-up/*?" component={() => <div className="min-h-dvh bg-[hsl(var(--muted))] p-5 sm:p-10"><SignUp routing="path" path={`${base}/sign-up`} signInUrl={`${base}/sign-in`} fallbackRedirectUrl={base || '/'} /></div>} /><Route path="/" component={Home} /><Route path="/page/:slug" component={Home} /><Route component={NotFound} /></Switch></ErrorBoundary>;
 }
 
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return <ClerkProvider publishableKey={publishableKey} proxyUrl={import.meta.env.PROD ? `${base}/api/__clerk` : undefined}><QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={base}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider></ClerkProvider>;
 }
 
 export default App;

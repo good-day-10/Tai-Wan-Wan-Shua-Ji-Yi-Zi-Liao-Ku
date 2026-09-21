@@ -56,7 +56,14 @@ export interface Archive {
 }
 
 export interface SaveArchiveRequest {
-  editorPassword: string;
   archive: Archive;
+}
+
+export interface EditorUnlockRequest {
+  editorPassword: string;
+}
+
+export interface EditorUnlockResponse {
+  unlocked: boolean;
 }
 

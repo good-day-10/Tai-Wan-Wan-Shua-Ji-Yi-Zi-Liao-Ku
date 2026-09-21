@@ -60,7 +60,31 @@ paths:
         "400":
           description: Invalid archive data
         "401":
-          description: Invalid editor password
+          description: Authentication or editor access required
+  /editor/unlock:
+    post:
+      operationId: unlockEditor
+      tags: [archive]
+      summary: Unlock archive editing for the signed-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorUnlockRequest"
+      responses:
+        "200":
+          description: Editor access granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorUnlockResponse"
+        "400":
+          description: Invalid editor credentials
+        "401":
+          description: Authentication or editor credentials required
+        "503":
+          description: Editor access is not configured
 components:
   schemas:
     HealthStatus:
@@ -190,11 +214,22 @@ components:
     SaveArchiveRequest:
       type: object
       properties:
-        editorPassword:
-          type: string
         archive:
           $ref: "#/components/schemas/Archive"
       required:
-        - editorPassword
         - archive
+    EditorUnlockRequest:
+      type: object
+      properties:
+        editorPassword:
+          type: string
+      required:
+        - editorPassword
+    EditorUnlockResponse:
+      type: object
+      properties:
+        unlocked:
+          type: boolean
+      required:
+        - unlocked
 

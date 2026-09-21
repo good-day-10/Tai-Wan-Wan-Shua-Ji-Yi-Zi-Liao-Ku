@@ -8,6 +8,8 @@
 
 export * from './archive';
 export * from './customPage';
+export * from './editorUnlockRequest';
+export * from './editorUnlockResponse';
 export * from './healthStatus';
 export * from './memory';
 export * from './saveArchiveRequest';

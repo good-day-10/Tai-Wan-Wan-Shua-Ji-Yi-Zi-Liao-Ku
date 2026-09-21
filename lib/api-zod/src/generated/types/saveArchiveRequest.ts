@@ -8,6 +8,5 @@
 import type { Archive } from './archive';
 
 export interface SaveArchiveRequest {
-  editorPassword: string;
   archive: Archive;
 }
