@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, ImagePlus, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -271,18 +271,32 @@ function MemoryImageField({ image, inputId, onChange, onClear }: { image?: strin
 
 function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const selectionRef = useRef<Range | null>(null);
   const setEditorRef = (node: HTMLDivElement | null) => {
     setElement(node);
   };
+  const saveSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount || !element || !element.contains(selection.anchorNode)) return;
+    selectionRef.current = selection.getRangeAt(0).cloneRange();
+  };
+  const restoreSelection = () => {
+    if (!element || !selectionRef.current) return;
+    element.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    selection.addRange(selectionRef.current);
+  };
   const runCommand = (command: string, commandValue?: string) => {
-    element?.focus();
+    restoreSelection();
     document.execCommand(command, false, commandValue);
     if (element) onChange(sanitizeStoryHtml(element.innerHTML));
   };
   const handleInput = () => {
     if (element) onChange(sanitizeStoryHtml(element.innerHTML));
   };
-  const keepSelection = (event: MouseEvent<HTMLButtonElement | HTMLSelectElement | HTMLInputElement>) => {
+  const keepSelection = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
   };
   const applyColor = (event: ChangeEvent<HTMLInputElement>) => runCommand('foreColor', event.target.value);
@@ -298,22 +312,22 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
       <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('italic')} className="rich-tool italic" title="斜體">I</button>
       <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('underline')} className="rich-tool underline" title="底線">U</button>
       <span className="mx-1 h-5 w-px bg-[hsl(var(--border))]" />
-      <select defaultValue="Noto Sans TC" onMouseDown={keepSelection} onChange={(event) => runCommand('fontName', event.target.value)} className="rich-select" aria-label="字體">
+      <select defaultValue="Noto Sans TC" onChange={(event) => runCommand('fontName', event.target.value)} className="rich-select" aria-label="字體">
         <option value="Noto Sans TC">無襯線</option>
         <option value="Noto Serif TC">襯線</option>
         <option value="Georgia">Georgia</option>
         <option value="monospace">等寬</option>
       </select>
-      <select defaultValue="3" onMouseDown={keepSelection} onChange={(event) => runCommand('fontSize', event.target.value)} className="rich-select" aria-label="文字大小">
+      <select defaultValue="3" onChange={(event) => runCommand('fontSize', event.target.value)} className="rich-select" aria-label="文字大小">
         <option value="2">小</option>
         <option value="3">標準</option>
         <option value="4">大</option>
         <option value="5">特大</option>
       </select>
-      <label className="rich-color" title="文字顏色"><span className="sr-only">文字顏色</span><input type="color" defaultValue="#15313d" onMouseDown={keepSelection} onChange={applyColor} /></label>
+      <label className="rich-color" title="文字顏色"><span className="sr-only">文字顏色</span><input type="color" defaultValue="#15313d" onChange={applyColor} /></label>
       <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('removeFormat')} className="rich-tool text-xs" title="清除格式">清除格式</button>
     </div>
-    <div ref={setEditorRef} contentEditable suppressContentEditableWarning onInput={handleInput} className="rich-editor min-h-[280px] p-4 text-base leading-loose focus:outline-none" data-placeholder="在這裡寫下故事…" role="textbox" aria-label="編輯完整故事" />
+    <div ref={setEditorRef} contentEditable suppressContentEditableWarning onInput={handleInput} onMouseUp={saveSelection} onKeyUp={saveSelection} className="rich-editor min-h-[280px] p-4 text-base leading-loose focus:outline-none" data-placeholder="在這裡寫下故事…" role="textbox" aria-label="編輯完整故事" />
   </div>;
 }
 
