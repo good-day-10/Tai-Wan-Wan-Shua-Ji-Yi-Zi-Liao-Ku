@@ -25,3 +25,14 @@ test('editor wiring keeps touch dragging and keyboard selection paths enabled', 
   assert.match(cssSource, /\.editor-scroll-container\s*\{[^}]*scroll-padding-bottom:/);
   assert.match(cssSource, /\.rich-editor\s*\{[^}]*scroll-margin-block:/);
 });
+
+test('editor gate only exposes the password field after Clerk confirms sign-in', async () => {
+  const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
+  const signedOutBranch = appSource.match(/!isSignedIn\s*\?\s*([\s\S]*?)\s*:\s*isOwner/);
+
+  assert.ok(signedOutBranch, 'PasswordGate should have a dedicated signed-out branch');
+  assert.match(signedOutBranch[1], /先登入再編輯/);
+  assert.doesNotMatch(signedOutBranch[1], /input-editor-password|編輯密碼/);
+  assert.match(appSource, /!isSignedIn\s*\?[\s\S]*?先登入再編輯[\s\S]*?:\s*isOwner[\s\S]*?:\s*<>\s*<p[^>]*>登入已確認/);
+  assert.match(appSource, /data-testid="input-editor-password"/);
+});

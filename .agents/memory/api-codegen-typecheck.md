@@ -7,4 +7,4 @@ Generated API clients can use `Headers.entries()`, so the consuming package's Ty
 
 **Why:** Code generation can succeed while the workspace type build fails on generated browser types or incompatible Zod internals.
 
-**How to apply:** When changing the OpenAPI contract, run codegen and the full workspace type check together; resolve generated-client lib requirements in the package tsconfig and keep schema typing independent of a mismatched Zod runtime.
+**How to apply:** When changing the OpenAPI contract, run codegen and `typecheck:libs` before consumer package checks so declaration output is fresh; resolve generated-client lib requirements in the package tsconfig and keep schema typing independent of a mismatched Zod runtime.

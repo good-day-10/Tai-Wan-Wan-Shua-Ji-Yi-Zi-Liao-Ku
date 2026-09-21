@@ -5,32 +5,107 @@ import { defaultSiteBlocks } from './site-content';
 const apiBaseUrl = (process.env.ARCHIVE_TEST_BASE_URL ?? 'http://localhost:80/api').replace(/\/$/, '');
 const testSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE;
 const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1' && Boolean(testSessionCookie);
+const editorPassword = process.env.ARCHIVE_EDITOR_PASSWORD;
+let editorCookie = testSessionCookie;
 
-async function requestArchive(options?: RequestInit): Promise<Record<string, unknown>> {
-  const response = await fetch(`${apiBaseUrl}/archive`, {
+async function requestJson(
+  path: string,
+  options?: RequestInit,
+  cookie: string | undefined = editorCookie,
+): Promise<{ response: Response; body: Record<string, unknown> }> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers: {
       'content-type': 'application/json',
-      ...(testSessionCookie ? { cookie: testSessionCookie } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-  const body = (await response.json()) as Record<string, unknown>;
-  assert.equal(response.ok, true, JSON.stringify(body));
-  return body;
-}
-
-async function requestArchiveWithStatus(options?: RequestInit): Promise<{ response: Response; body: Record<string, unknown> }> {
-  const response = await fetch(`${apiBaseUrl}/archive`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...(testSessionCookie ? { cookie: testSessionCookie } : {}),
+      ...(cookie ? { cookie } : {}),
       ...(options?.headers ?? {}),
     },
   });
   return { response, body: (await response.json()) as Record<string, unknown> };
 }
+
+async function requestArchive(
+  options?: RequestInit,
+  cookie: string | undefined = editorCookie,
+): Promise<Record<string, unknown>> {
+  const { response, body } = await requestJson('/archive', options, cookie);
+  assert.equal(response.ok, true, JSON.stringify(body));
+  return body;
+}
+
+async function requestArchiveWithStatus(
+  options?: RequestInit,
+  cookie: string | undefined = editorCookie,
+): Promise<{ response: Response; body: Record<string, unknown> }> {
+  return requestJson('/archive', options, cookie);
+}
+
+function getSetCookieHeaders(response: Response): string[] {
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  if (typeof headers.getSetCookie === 'function') return headers.getSetCookie();
+  const header = response.headers.get('set-cookie');
+  return header ? [header] : [];
+}
+
+async function unlockForTest(): Promise<void> {
+  assert.ok(editorPassword, 'ARCHIVE_EDITOR_PASSWORD is required for editor integration tests');
+  assert.ok(testSessionCookie, 'ARCHIVE_TEST_SESSION_COOKIE is required for editor integration tests');
+
+  const { response, body } = await requestJson(
+    '/editor/unlock',
+    {
+      method: 'POST',
+      body: JSON.stringify({ editorPassword }),
+    },
+    testSessionCookie,
+  );
+  assert.equal(response.ok, true, JSON.stringify(body));
+  assert.deepEqual(body, { unlocked: true });
+
+  const accessCookies = getSetCookieHeaders(response)
+    .map((value) => value.split(';', 1)[0])
+    .filter(Boolean);
+  assert.ok(accessCookies.length > 0, 'Editor unlock should issue an access cookie');
+  assert.match(getSetCookieHeaders(response).join('; '), /HttpOnly/i);
+  editorCookie = `${testSessionCookie}; ${accessCookies.join('; ')}`;
+}
+
+test.before(async () => {
+  if (shouldRun) await unlockForTest();
+});
+
+test('editor unlock rejects unauthenticated and incorrect credentials without revealing secrets', { skip: !shouldRun }, async () => {
+  const unauthenticatedStatus = await requestJson('/editor/status', undefined, undefined);
+  assert.deepEqual(unauthenticatedStatus.body, { authenticated: false, owner: false });
+
+  const authenticatedStatus = await requestJson('/editor/status', undefined, testSessionCookie);
+  assert.equal(authenticatedStatus.body.authenticated, true);
+
+  const unauthenticated = await requestJson(
+    '/editor/unlock',
+    {
+      method: 'POST',
+      body: JSON.stringify({ editorPassword: 'wrong-editor-password' }),
+    },
+    undefined,
+  );
+  assert.equal(unauthenticated.response.status, 401, JSON.stringify(unauthenticated.body));
+  assert.deepEqual(unauthenticated.body, { error: 'Authentication required' });
+
+  const incorrect = await requestJson(
+    '/editor/unlock',
+    {
+      method: 'POST',
+      body: JSON.stringify({ editorPassword: 'wrong-editor-password' }),
+    },
+    testSessionCookie,
+  );
+  assert.equal(incorrect.response.status, 401, JSON.stringify(incorrect.body));
+  assert.deepEqual(incorrect.body, { error: 'Invalid editor credentials' });
+  assert.equal(JSON.stringify(incorrect.body).includes('wrong-editor-password'), false);
+  if (editorPassword) assert.equal(JSON.stringify(incorrect.body).includes(editorPassword), false);
+  assert.equal(getSetCookieHeaders(incorrect.response).length, 0);
+});
 
 test('saved page content is returned to separate visitor reads', { skip: !shouldRun }, async () => {
   const original = await requestArchive();
@@ -59,8 +134,8 @@ test('saved page content is returned to separate visitor reads', { skip: !should
       }),
     });
 
-    const firstVisitorRead = await requestArchive({ cache: 'no-store' });
-    const secondVisitorRead = await requestArchive({ cache: 'no-store' });
+    const firstVisitorRead = await requestArchive({ cache: 'no-store' }, undefined);
+    const secondVisitorRead = await requestArchive({ cache: 'no-store' }, undefined);
     for (const visitorRead of [firstVisitorRead, secondVisitorRead]) {
       const blocks = (visitorRead.siteContent as { blocks: Array<Record<string, unknown>> }).blocks;
       for (const [id, expected] of Object.entries({
