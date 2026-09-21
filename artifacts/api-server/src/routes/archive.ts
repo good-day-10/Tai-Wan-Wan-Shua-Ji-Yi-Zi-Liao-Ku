@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { clerkClient, getAuth } from "@clerk/express";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, archiveTable } from "@workspace/db";
@@ -55,6 +55,7 @@ router.get("/archive", async (_req, res): Promise<void> => {
   }
 
   const parsed = GetArchiveResponse.safeParse({
+    version: archive.updatedAt.toISOString(),
     introduction: archive.introduction,
     memories: archive.memories,
     siteContent: archive.siteContent ?? undefined,
@@ -121,8 +122,51 @@ router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
     return;
   }
 
-  const { archive } = parsed.data;
-  await db
+  const { archive, expectedVersion } = parsed.data;
+  const [current] = await db
+    .select({ updatedAt: archiveTable.updatedAt })
+    .from(archiveTable)
+    .where(eq(archiveTable.id, ARCHIVE_ID))
+    .limit(1);
+
+  if (current && !expectedVersion) {
+    res.status(409).json({ error: "Archive version is required; reload before saving" });
+    return;
+  }
+
+  if (current && expectedVersion) {
+    const expectedDate = new Date(expectedVersion);
+    if (Number.isNaN(expectedDate.getTime())) {
+      res.status(400).json({ error: "Invalid archive version" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(archiveTable)
+      .set({
+        introduction: archive.introduction,
+        memories: archive.memories,
+        siteContent: archive.siteContent ?? null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(archiveTable.id, ARCHIVE_ID), eq(archiveTable.updatedAt, expectedDate)))
+      .returning();
+
+    if (!updated) {
+      res.status(409).json({ error: "Archive was changed by another editor; reload before saving" });
+      return;
+    }
+
+    res.json(SaveArchiveResponse.parse({
+      version: updated.updatedAt.toISOString(),
+      introduction: updated.introduction,
+      memories: updated.memories,
+      siteContent: updated.siteContent ?? undefined,
+    }));
+    return;
+  }
+
+  const [inserted] = await db
     .insert(archiveTable)
     .values({
       id: ARCHIVE_ID,
@@ -130,17 +174,20 @@ router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
       memories: archive.memories,
       siteContent: archive.siteContent ?? null,
     })
-    .onConflictDoUpdate({
-      target: archiveTable.id,
-      set: {
-        introduction: archive.introduction,
-        memories: archive.memories,
-        siteContent: archive.siteContent ?? null,
-        updatedAt: new Date(),
-      },
-    });
+    .onConflictDoNothing({ target: archiveTable.id })
+    .returning();
 
-  res.json(SaveArchiveResponse.parse(archive));
+  if (!inserted) {
+    res.status(409).json({ error: "Archive was changed by another editor; reload before saving" });
+    return;
+  }
+
+  res.json(SaveArchiveResponse.parse({
+    version: inserted.updatedAt.toISOString(),
+    introduction: inserted.introduction,
+    memories: inserted.memories,
+    siteContent: inserted.siteContent ?? undefined,
+  }));
 });
 
 export default router;

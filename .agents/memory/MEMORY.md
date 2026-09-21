@@ -1,4 +1,5 @@
 - [API code generation type checks](api-codegen-typecheck.md) — generated web clients may require DOM iterable types, and Drizzle schema types should avoid mixed Zod major versions.
 - [Archive content persistence](archive-content-persistence.md) — optional legacy page content must merge with defaults before visitor rendering.
+- [Archive concurrency protection](archive-concurrency.md) — full-archive saves must carry the latest server version and reject stale drafts.
 - [Rich editor selection handling](rich-editor-selection.md) — formatting commands should prefer the live contentEditable selection before restoring a saved Range.
 - [Archive editor authentication](archive-editor-auth.md) — visitor reads stay public; editor writes require Clerk authentication plus a server-validated unlock.

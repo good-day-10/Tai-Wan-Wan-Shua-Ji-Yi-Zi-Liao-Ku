@@ -9,6 +9,8 @@ import type { Memory } from './memory';
 import type { SiteContent } from './siteContent';
 
 export interface Archive {
+  /** Server version used for optimistic concurrency checks */
+  version?: string;
   introduction: string;
   memories: Memory[];
   siteContent?: SiteContent;

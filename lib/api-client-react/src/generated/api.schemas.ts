@@ -50,6 +50,8 @@ export interface SiteContent {
 }
 
 export interface Archive {
+  /** Server version used for optimistic concurrency checks */
+  version?: string;
   introduction: string;
   memories: Memory[];
   siteContent?: SiteContent;
@@ -57,6 +59,8 @@ export interface Archive {
 
 export interface SaveArchiveRequest {
   archive: Archive;
+  /** Version read by the editor before it started editing */
+  expectedVersion?: string;
 }
 
 export interface EditorUnlockRequest {

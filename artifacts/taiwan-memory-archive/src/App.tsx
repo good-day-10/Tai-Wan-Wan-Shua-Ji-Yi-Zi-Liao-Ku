@@ -47,7 +47,7 @@ type CustomPage = {
 };
 
 type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
-type ArchiveData = { introduction: string; memories: Memory[]; siteContent: SiteContent };
+type ArchiveData = { version?: string; introduction: string; memories: Memory[]; siteContent: SiteContent };
 
 const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TAIWAN PLAY MEMORIES', x: 0, y: 0, width: 100, align: 'left' },
@@ -127,8 +127,8 @@ function normalizeSiteContent(input?: SiteContentInput): SiteContent {
   return { ...normalized, pages };
 }
 
-function normalizeArchive(value: { memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
-  return { introduction: value.introduction, memories: value.memories, siteContent: normalizeSiteContent(value.siteContent) };
+function normalizeArchive(value: { version?: string; memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
+  return { version: value.version, introduction: value.introduction, memories: value.memories, siteContent: normalizeSiteContent(value.siteContent) };
 }
 
 const seedData: ArchiveData = {
@@ -893,13 +893,20 @@ function Home() {
   }, []);
   const saveArchive = async (data: ArchiveData) => {
     try {
-      const sharedArchive = await saveSharedArchive({ archive: data });
+      const sharedArchive = await saveSharedArchive({
+        archive: data,
+        ...(data.version ? { expectedVersion: data.version } : {}),
+      });
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
       localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
       setEditing(false);
-    } catch {
-      window.alert('共享資料保存失敗，請確認 API 服務正在運作後再試一次。');
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'status' in error && error.status === 409) {
+        window.alert('共享資料已被其他編輯者更新，這次保存已取消。請重新載入頁面後再編輯。');
+      } else {
+        window.alert('共享資料保存失敗，請確認 API 服務正在運作後再試一次。');
+      }
       throw new Error('Shared archive save failed');
     }
   };

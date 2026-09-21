@@ -20,6 +20,18 @@ async function requestArchive(options?: RequestInit): Promise<Record<string, unk
   return body;
 }
 
+async function requestArchiveWithStatus(options?: RequestInit): Promise<{ response: Response; body: Record<string, unknown> }> {
+  const response = await fetch(`${apiBaseUrl}/archive`, {
+    ...options,
+    headers: {
+      'content-type': 'application/json',
+      ...(testSessionCookie ? { cookie: testSessionCookie } : {}),
+      ...(options?.headers ?? {}),
+    },
+  });
+  return { response, body: (await response.json()) as Record<string, unknown> };
+}
+
 test('saved page content is returned to separate visitor reads', { skip: !shouldRun }, async () => {
   const original = await requestArchive();
   const originalSiteContent = (original.siteContent ?? {}) as { blocks?: unknown[]; pages?: unknown[] };
@@ -43,6 +55,7 @@ test('saved page content is returned to separate visitor reads', { skip: !should
       method: 'PUT',
       body: JSON.stringify({
         archive: { ...original, siteContent: { blocks: updatedBlocks } },
+        expectedVersion: original.version,
       }),
     });
 
@@ -69,6 +82,7 @@ test('saved page content is returned to separate visitor reads', { skip: !should
       });
     }
   } finally {
+    const current = await requestArchive({ cache: 'no-store' });
     await requestArchive({
       method: 'PUT',
       body: JSON.stringify({
@@ -76,6 +90,7 @@ test('saved page content is returned to separate visitor reads', { skip: !should
           ...original,
           ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
         },
+        expectedVersion: current.version,
       }),
     });
   }
@@ -119,9 +134,9 @@ test('saved custom pages remain available to visitors and disappear after deleti
   };
 
   try {
-    await requestArchive({
+    const savedWithPage = await requestArchive({
       method: 'PUT',
-      body: JSON.stringify({ archive: archiveWithPage }),
+      body: JSON.stringify({ archive: archiveWithPage, expectedVersion: original.version }),
     });
 
     const visitorReads = await Promise.all([
@@ -143,12 +158,14 @@ test('saved custom pages remain available to visitors and disappear after deleti
             pages: originalPages,
           },
         },
+        expectedVersion: savedWithPage.version,
       }),
     });
     const afterDeletion = await requestArchive({ cache: 'no-store' });
     const pagesAfterDeletion = ((afterDeletion.siteContent as { pages?: Array<Record<string, unknown>> } | undefined)?.pages ?? []);
     assert.equal(pagesAfterDeletion.some((savedPage) => savedPage.id === pageId || savedPage.slug === pageSlug), false);
   } finally {
+    const current = await requestArchive({ cache: 'no-store' });
     await requestArchive({
       method: 'PUT',
       body: JSON.stringify({
@@ -156,6 +173,56 @@ test('saved custom pages remain available to visitors and disappear after deleti
           ...original,
           ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
         },
+        expectedVersion: current.version,
+      }),
+    });
+  }
+});
+
+test('stale archive versions are rejected without removing another editor page', { skip: !shouldRun }, async () => {
+  const original = await requestArchive();
+  const originalSiteContent = (original.siteContent ?? {}) as { blocks?: unknown[]; pages?: Array<Record<string, unknown>> };
+  const originalBlocks = Array.isArray(originalSiteContent.blocks) ? originalSiteContent.blocks : defaultSiteBlocks;
+  const originalPages = Array.isArray(originalSiteContent.pages) ? originalSiteContent.pages : [];
+  const uniqueSuffix = Date.now();
+  const currentPage = {
+    id: `concurrent-page-${uniqueSuffix}`,
+    title: '另一位編輯者的新頁面',
+    slug: `concurrent-page-${uniqueSuffix}`,
+    blocks: [],
+  };
+  const currentArchive = {
+    ...original,
+    siteContent: { blocks: originalBlocks, pages: [...originalPages, currentPage] },
+  };
+
+  try {
+    const firstSave = await requestArchiveWithStatus({
+      method: 'PUT',
+      body: JSON.stringify({ archive: currentArchive, expectedVersion: original.version }),
+    });
+    assert.equal(firstSave.response.ok, true, JSON.stringify(firstSave.body));
+    assert.equal(typeof firstSave.body.version, 'string');
+
+    const staleSave = await requestArchiveWithStatus({
+      method: 'PUT',
+      body: JSON.stringify({ archive: original, expectedVersion: original.version }),
+    });
+    assert.equal(staleSave.response.status, 409, JSON.stringify(staleSave.body));
+
+    const visitorRead = await requestArchive({ cache: 'no-store' });
+    const pages = ((visitorRead.siteContent as { pages?: Array<Record<string, unknown>> } | undefined)?.pages ?? []);
+    assert.deepEqual(pages.find((page) => page.id === currentPage.id), currentPage);
+  } finally {
+    const current = await requestArchive({ cache: 'no-store' });
+    await requestArchive({
+      method: 'PUT',
+      body: JSON.stringify({
+        archive: {
+          ...original,
+          ...(original.siteContent === undefined ? {} : { siteContent: originalSiteContent }),
+        },
+        expectedVersion: current.version,
       }),
     });
   }
