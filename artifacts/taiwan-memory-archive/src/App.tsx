@@ -50,6 +50,20 @@ type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
 type ArchiveData = { version?: string; introduction: string; memories: Memory[]; siteContent: SiteContent };
 type SharedArchiveStatus = 'loading' | 'ready' | 'error';
 
+function isArchiveConflictError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'status' in error && error.status === 409;
+}
+
+function createArchiveConflictError(): Error {
+  const error = new Error('Shared archive version conflict');
+  error.name = 'ArchiveConflictError';
+  return error;
+}
+
+function isCreatedArchiveConflictError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ArchiveConflictError';
+}
+
 const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TAIWAN PLAY MEMORIES', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'header.title', label: '頁首網站名稱', section: '頁首', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
@@ -764,7 +778,7 @@ function CustomPagesEditor({ pages, onChange }: { pages: CustomPage[]; onChange:
   </div>;
 }
 
-function UnsavedChangesDialog({ saving, error, onSave, onDiscard, onContinue }: { saving: boolean; error?: string; onSave: () => void; onDiscard: () => void; onContinue: () => void }) {
+function UnsavedChangesDialog({ saving, error, conflict, reloadingLatest, onSave, onDiscard, onContinue, onReloadLatest }: { saving: boolean; error?: string; conflict?: boolean; reloadingLatest: boolean; onSave: () => void; onDiscard: () => void; onContinue: () => void; onReloadLatest: () => void }) {
   return <div className="unsaved-dialog-backdrop detail-backdrop fixed inset-0 z-50 flex items-center justify-center" role="presentation">
     <div className="unsaved-dialog-panel modal-panel w-full max-w-lg rounded-3xl bg-[hsl(var(--background))] p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="unsaved-changes-title" aria-describedby="unsaved-changes-description">
       <div className="flex items-start gap-4">
@@ -772,7 +786,7 @@ function UnsavedChangesDialog({ saving, error, onSave, onDiscard, onContinue }: 
         <div>
           <h2 id="unsaved-changes-title" className="serif text-2xl font-bold">還有尚未保存的修改</h2>
           <p id="unsaved-changes-description" className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">你已經修改了文字或排版。離開編輯模式前，要如何處理這些修改？</p>
-          {error && <p className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-before-close" role="alert">{error}</p>}
+          {error && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-before-close" role="alert"><p>{error}</p>{conflict && <button type="button" disabled={saving || reloadingLatest} onClick={onReloadLatest} className="btn-outline mt-3 min-h-10 w-full justify-center border-[hsl(var(--destructive)/.45)] px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest-before-close"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '重新載入中…' : '重新載入最新資料'}</button>}</div>}
         </div>
       </div>
       <div className="mt-7 grid gap-2 sm:flex sm:flex-row-reverse">
@@ -784,7 +798,7 @@ function UnsavedChangesDialog({ saving, error, onSave, onDiscard, onContinue }: 
   </div>;
 }
 
-function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void }) {
+function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<void> }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -792,6 +806,8 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveConflict, setSaveConflict] = useState(false);
+  const [reloadingLatest, setReloadingLatest] = useState(false);
   const [pendingCloseAction, setPendingCloseAction] = useState<'cancel' | 'lock' | null>(null);
   const hasUnsavedChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(archive), [archive, draft]);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
@@ -824,11 +840,28 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
       await onSave(draft);
       setSaved(true);
       setTimeout(() => setSaved(false), 2200);
-    } catch {
+    } catch (error) {
       // Keep both the draft and the close prompt so the user can retry or choose another action.
-      setSaveError('保存失敗，這些修改仍保留在編輯器中。你可以再次保存、放棄修改，或繼續編輯。');
+      const conflict = isCreatedArchiveConflictError(error);
+      setSaveConflict(conflict);
+      if (conflict) {
+        setSaveError('共享資料已被其他編輯者更新，這次保存已取消。這些修改仍保留在編輯器中。');
+      } else {
+        setSaveError('保存失敗，這些修改仍保留在編輯器中。你可以再次保存、放棄修改，或繼續編輯。');
+      }
     } finally {
       setSaving(false);
+    }
+  };
+  const reloadLatest = async () => {
+    setReloadingLatest(true);
+    try {
+      await onReloadLatest();
+    } catch {
+      setSaveError('最新資料載入失敗，這些修改仍保留在編輯器中。請稍後再試。');
+      setSaveConflict(true);
+    } finally {
+      setReloadingLatest(false);
     }
   };
   const updateSelected = (field: keyof Memory, value: string) => {
@@ -860,7 +893,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
           <div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div>
           <div className="flex gap-2"><button onClick={() => requestClose('cancel')} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={() => requestClose('lock')} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={saveDraft} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
         </div>
-         {saveError && <p className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert">{saveError}</p>}
+          {saveError && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert"><p>{saveError}</p>{saveConflict && <button type="button" disabled={saving || reloadingLatest} onClick={reloadLatest} className="btn-outline mt-3 min-h-10 px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '重新載入中…' : '重新載入最新資料'}</button>}</div>}
       </div>
       <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
       {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
@@ -889,7 +922,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
       </div>}
     </div>
     {showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /></button></div></div></div>}
-    {pendingCloseAction && <UnsavedChangesDialog saving={saving} error={saveError ?? undefined} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} />}
+    {pendingCloseAction && <UnsavedChangesDialog saving={saving} error={saveError ?? undefined} conflict={saveConflict} reloadingLatest={reloadingLatest} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} onReloadLatest={reloadLatest} />}
   </div>;
 }
 
@@ -926,6 +959,24 @@ function Home() {
     setSharedStatus('loading');
     setLoadAttempt((attempt) => attempt + 1);
   };
+  const reloadLatestArchive = async () => {
+    setSharedStatus('loading');
+    try {
+      const sharedArchive = await getSharedArchive({ cache: 'no-store' });
+      const normalized = normalizeArchive(sharedArchive);
+      setArchive(normalized);
+      try {
+        localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
+      } catch {
+        // The shared response is still authoritative when local storage is unavailable.
+      }
+      setSharedStatus('ready');
+      setEditing(false);
+    } catch (error) {
+      setSharedStatus('error');
+      throw error;
+    }
+  };
   const saveArchive = async (data: ArchiveData) => {
     try {
       const sharedArchive = await saveSharedArchive({
@@ -937,8 +988,8 @@ function Home() {
       localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
       setEditing(false);
     } catch (error) {
-      if (typeof error === 'object' && error !== null && 'status' in error && error.status === 409) {
-        window.alert('共享資料已被其他編輯者更新，這次保存已取消。請重新載入頁面後再編輯。');
+      if (isArchiveConflictError(error)) {
+        throw createArchiveConflictError();
       } else {
         window.alert('共享資料保存失敗，請確認 API 服務正在運作後再試一次。');
       }
@@ -949,8 +1000,8 @@ function Home() {
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
+  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</div>;
 }
 
 function Router() {
