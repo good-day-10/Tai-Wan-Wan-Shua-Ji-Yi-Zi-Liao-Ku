@@ -1,5 +1,14 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="180" height="180" rx="36" fill="#8ED8F8"/>
-  <text x="12" y="72" fill="#101820" font-family="Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif" font-size="62" font-weight="900">台</text>
-  <text x="91" y="166" fill="#D94235" font-family="Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif" font-size="62" font-weight="900">玩</text>
+  <defs>
+    <clipPath id="logo-clip">
+      <rect x="3" y="3" width="174" height="174" rx="39"/>
+    </clipPath>
+  </defs>
+  <rect width="180" height="180" rx="42" fill="#8ED8F8"/>
+  <g clip-path="url(#logo-clip)">
+    <path d="M55 71C71 73 80 84 98 99" stroke="#101820" stroke-width="8" stroke-linecap="round" opacity=".72"/>
+    <path d="M57 72C72 75 81 86 96 99" stroke="#D94235" stroke-width="2.5" stroke-linecap="round" opacity=".9"/>
+    <text x="7" y="81" fill="#101820" stroke="#101820" stroke-width=".8" paint-order="stroke fill" font-family="Kaiti TC, BiauKai, DFKai-SB, STKaiti, Noto Serif TC, serif" font-size="78" font-weight="700" letter-spacing="-2">台</text>
+    <text x="73" y="163" fill="#D94235" stroke="#D94235" stroke-width=".8" paint-order="stroke fill" font-family="Kaiti TC, BiauKai, DFKai-SB, STKaiti, Noto Serif TC, serif" font-size="78" font-weight="700" letter-spacing="-2">玩</text>
+  </g>
 </svg>
