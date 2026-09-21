@@ -36,3 +36,19 @@ test('editor gate only exposes the password field after Clerk confirms sign-in',
   assert.match(appSource, /!isSignedIn\s*\?[\s\S]*?先登入再編輯[\s\S]*?:\s*isOwner[\s\S]*?:\s*<>\s*<p[^>]*>登入已確認/);
   assert.match(appSource, /data-testid="input-editor-password"/);
 });
+
+test('unsaved changes choices stay reachable on short mobile screens', async () => {
+  const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
+  const cssSource = await readFile(new URL('./index.css', import.meta.url), 'utf8');
+
+  assert.match(appSource, /unsaved-dialog-backdrop/);
+  assert.match(appSource, /unsaved-dialog-panel[^>]*role="dialog"[^>]*aria-modal="true"/);
+  assert.match(appSource, /type="button"[^>]*onClick=\{onSave\}[^>]*data-testid="button-save-before-close"/);
+  assert.match(appSource, /type="button"[^>]*onClick=\{onDiscard\}[^>]*data-testid="button-discard-before-close"/);
+  assert.match(appSource, /type="button"[^>]*onClick=\{onContinue\}[^>]*data-testid="button-continue-editing"/);
+  assert.match(appSource, /const continueEditing = \(\) => setPendingCloseAction\(null\)/);
+  assert.match(appSource, /\(action === 'lock' \? onLock : onCancel\)\(\)/);
+  assert.match(cssSource, /\.unsaved-dialog-backdrop\s*\{[^}]*overflow-y:\s*auto/);
+  assert.match(cssSource, /\.unsaved-dialog-panel\s*\{[^}]*max-height:\s*calc\(100dvh - 2rem\)/);
+  assert.match(cssSource, /\.unsaved-dialog-panel\s*\{[^}]*overflow-y:\s*auto/);
+});

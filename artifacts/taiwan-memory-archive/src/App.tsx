@@ -765,19 +765,19 @@ function CustomPagesEditor({ pages, onChange }: { pages: CustomPage[]; onChange:
 }
 
 function UnsavedChangesDialog({ saving, onSave, onDiscard, onContinue }: { saving: boolean; onSave: () => void; onDiscard: () => void; onContinue: () => void }) {
-  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="presentation">
-    <div className="modal-panel w-full max-w-lg rounded-3xl bg-[hsl(var(--background))] p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="unsaved-changes-title">
+  return <div className="unsaved-dialog-backdrop detail-backdrop fixed inset-0 z-50 flex items-center justify-center" role="presentation">
+    <div className="unsaved-dialog-panel modal-panel w-full max-w-lg rounded-3xl bg-[hsl(var(--background))] p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="unsaved-changes-title" aria-describedby="unsaved-changes-description">
       <div className="flex items-start gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Eye size={20} /></div>
         <div>
           <h2 id="unsaved-changes-title" className="serif text-2xl font-bold">還有尚未保存的修改</h2>
-          <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">你已經修改了文字或排版。離開編輯模式前，要如何處理這些修改？</p>
+          <p id="unsaved-changes-description" className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">你已經修改了文字或排版。離開編輯模式前，要如何處理這些修改？</p>
         </div>
       </div>
       <div className="mt-7 grid gap-2 sm:flex sm:flex-row-reverse">
-        <button type="button" disabled={saving} onClick={onSave} className="btn-primary w-full justify-center px-4 py-3 text-sm disabled:cursor-wait disabled:opacity-60" data-testid="button-save-before-close">{saving ? '保存中…' : '保存並離開'}</button>
-        <button type="button" disabled={saving} onClick={onDiscard} className="btn-outline w-full justify-center px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-discard-before-close">放棄修改</button>
-        <button type="button" disabled={saving} onClick={onContinue} className="btn-ghost w-full justify-center px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-continue-editing">繼續編輯</button>
+        <button type="button" disabled={saving} onClick={onSave} className="btn-primary min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-wait disabled:opacity-60" data-testid="button-save-before-close">{saving ? '保存中…' : '保存並離開'}</button>
+        <button type="button" disabled={saving} onClick={onDiscard} className="btn-outline min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-discard-before-close">放棄修改</button>
+        <button type="button" disabled={saving} onClick={onContinue} className="btn-ghost min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-continue-editing">繼續編輯</button>
       </div>
     </div>
   </div>;
