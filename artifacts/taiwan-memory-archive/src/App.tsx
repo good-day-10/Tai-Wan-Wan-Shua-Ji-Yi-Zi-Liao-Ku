@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { createDefaultSiteContent as createSharedDefaultSiteContent, normalizeSiteContent as normalizeSharedSiteContent } from './site-content';
 
 type Memory = {
   id: string;
@@ -98,7 +99,7 @@ const defaultSiteBlocks: SiteTextBlock[] = [
 ];
 
 function createDefaultSiteContent(): SiteContent {
-  return { blocks: defaultSiteBlocks.map((block) => ({ ...block })), pages: [] };
+  return { ...createSharedDefaultSiteContent(), pages: [] };
 }
 
 type SiteTextBlockInput = Omit<SiteTextBlock, 'align'> & { align: string };
@@ -113,11 +114,7 @@ function normalizeBlocks(input: SiteTextBlockInput[] = []): SiteTextBlock[] {
 }
 
 function normalizeSiteContent(input?: SiteContentInput): SiteContent {
-  const incoming = normalizeBlocks(input?.blocks);
-  const byId = new Map(incoming.map((block) => [block.id, block]));
-  const defaults = createDefaultSiteContent().blocks;
-  const blocks = defaults.map((block) => ({ ...block, ...byId.get(block.id) }));
-  incoming.filter((block) => !defaults.some((defaultBlock) => defaultBlock.id === block.id)).forEach((block) => blocks.push(block));
+  const normalized = normalizeSharedSiteContent(input);
   const pages = (input?.pages ?? []).map((page) => ({
     id: page.id,
     title: page.title,
@@ -125,7 +122,7 @@ function normalizeSiteContent(input?: SiteContentInput): SiteContent {
     backgroundImage: page.backgroundImage,
     blocks: normalizeBlocks(page.blocks),
   }));
-  return { blocks, pages };
+  return { ...normalized, pages };
 }
 
 function normalizeArchive(value: { memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
