@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: archive
+    description: Shared memory archive operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /archive:
+    get:
+      operationId: getArchive
+      tags: [archive]
+      summary: Get the shared memory archive
+      responses:
+        "200":
+          description: Shared archive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archive"
+        "404":
+          description: Archive has not been saved yet
+    put:
+      operationId: saveArchive
+      tags: [archive]
+      summary: Save the shared memory archive
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveArchiveRequest"
+      responses:
+        "200":
+          description: Saved shared archive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archive"
+        "400":
+          description: Invalid archive data
+        "401":
+          description: Invalid editor password
 components:
   schemas:
     HealthStatus:
@@ -33,4 +70,68 @@ components:
           type: string
       required:
         - status
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        location:
+          type: string
+        era:
+          type: string
+        category:
+          type: string
+        storyteller:
+          type: string
+        excerpt:
+          type: string
+        story:
+          type: string
+        storyHtml:
+          type: string
+        color:
+          type: string
+        mark:
+          type: string
+        image:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - title
+        - location
+        - era
+        - category
+        - storyteller
+        - excerpt
+        - story
+        - color
+        - mark
+    Archive:
+      type: object
+      properties:
+        introduction:
+          type: string
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"
+      required:
+        - introduction
+        - memories
+    SaveArchiveRequest:
+      type: object
+      properties:
+        editorPassword:
+          type: string
+        archive:
+          $ref: "#/components/schemas/Archive"
+      required:
+        - editorPassword
+        - archive
 

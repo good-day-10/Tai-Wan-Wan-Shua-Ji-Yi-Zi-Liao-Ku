@@ -1,0 +1,1 @@
+- [API code generation type checks](api-codegen-typecheck.md) — generated web clients may require DOM iterable types, and Drizzle schema types should avoid mixed Zod major versions.

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { getArchive as getSharedArchive, saveArchive as saveSharedArchive } from '@workspace/api-client-react';
 import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, ImagePlus, LockKeyhole, MapPin, Menu, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -202,7 +203,7 @@ function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: ()
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const submit = (event: FormEvent) => { event.preventDefault(); if (password === '00000') onUnlock(); else { setError('密碼不對，再試一次。提示：是五個 0。'); setPassword(''); } };
-  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">這裡是給資料庫守護者的入口。輸入五位數密碼，就可以整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" inputMode="numeric" maxLength={5} placeholder="請輸入 5 位數密碼" className="input-archive mt-2 text-center text-xl tracking-[.45em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" className="btn-primary mt-5 w-full" data-testid="button-submit-password">進入編輯模式 <ArrowRight size={16} /></button></form><p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容只會保存在這台裝置上</p></div></div>;
+  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">這裡是給資料庫守護者的入口。輸入五位數密碼，就可以整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" inputMode="numeric" maxLength={5} placeholder="請輸入 5 位數密碼" className="input-archive mt-2 text-center text-xl tracking-[.45em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" className="btn-primary mt-5 w-full" data-testid="button-submit-password">進入編輯模式 <ArrowRight size={16} /></button></form><p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p></div></div>;
 }
 
 function imageToDataUrl(file: File): Promise<string> {
@@ -364,11 +365,12 @@ function CardColorPicker({ value, onChange }: { value: string; onChange: (value:
   </div>;
 }
 
-function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => void; onCancel: () => void; onLock: () => void }) {
+function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
   const updateSelected = (field: keyof Memory, value: string) => {
     if (!selectedId) return;
@@ -397,7 +399,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
       <div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div>
-          <div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button onClick={() => { onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); }} className="btn-primary text-xs" data-testid="button-save-archive">{saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
+          <div className="flex gap-2"><button onClick={onCancel} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={onLock} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={async () => { setSaving(true); try { await onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2200); } catch { /* saveArchive reports the error and keeps the editor open */ } finally { setSaving(false); } }} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : <><Check size={15} /> 保存變更</>}</button></div>
         </div>
       </div>
       <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
@@ -438,8 +440,28 @@ function Home() {
   const [detail, setDetail] = useState<Memory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  useEffect(() => { localStorage.setItem('taiwan-memory-archive', JSON.stringify(archive)); }, [archive]);
-  const saveArchive = (data: ArchiveData) => { setArchive(data); setEditing(false); };
+  useEffect(() => {
+    let active = true;
+    getSharedArchive().then((sharedArchive) => {
+      if (!active) return;
+      setArchive(sharedArchive);
+      localStorage.setItem('taiwan-memory-archive', JSON.stringify(sharedArchive));
+    }).catch(() => {
+      // A new project has no saved archive yet; seedData/localStorage remains the local fallback.
+    });
+    return () => { active = false; };
+  }, []);
+  const saveArchive = async (data: ArchiveData) => {
+    try {
+      const sharedArchive = await saveSharedArchive({ editorPassword: '00000', archive: data });
+      setArchive(sharedArchive);
+      localStorage.setItem('taiwan-memory-archive', JSON.stringify(sharedArchive));
+      setEditing(false);
+    } catch {
+      window.alert('共享資料保存失敗，請確認 API 服務正在運作後再試一次。');
+      throw new Error('Shared archive save failed');
+    }
+  };
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
   return <div className="archive-shell texture"><Header /><main><Hero introduction={archive.introduction} onExplore={explore} /><IndexSection memories={archive.memories} onOpen={setDetail} /><AboutSection /></main><Footer onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} />}</div>;
 }
