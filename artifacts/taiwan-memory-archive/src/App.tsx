@@ -293,16 +293,16 @@ function PageTextBlock({ block, className = '' }: { block: SiteTextBlock; classN
 function SharedArchiveNotice({ status, onRetry }: { status: SharedArchiveStatus; onRetry: () => void }) {
   if (status === 'ready') return null;
   const isLoading = status === 'loading';
-  return <div className="relative z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]" role={isLoading ? 'status' : 'alert'} aria-live="polite">
-    <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 text-sm lg:px-8">
-      <div className="flex min-w-0 items-start gap-3">
+  return <div className="shared-archive-notice relative z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]" role={isLoading ? 'status' : 'alert'} aria-live="polite" data-testid={`shared-archive-notice-${status}`}>
+    <div className="shared-archive-notice-inner mx-auto flex max-w-7xl items-start justify-between gap-4 px-5 py-3 text-sm lg:px-8">
+      <div className="shared-archive-notice-copy flex min-w-0 items-start gap-3">
         {isLoading ? <LoaderCircle size={18} className="mt-0.5 shrink-0 animate-spin text-[hsl(var(--primary))]" aria-hidden="true" /> : <RefreshCw size={18} className="mt-0.5 shrink-0 text-[hsl(var(--secondary))]" aria-hidden="true" />}
         <div className="min-w-0">
-          <p className="font-semibold text-[hsl(var(--foreground))]">{isLoading ? '正在同步共享資料' : '共享資料暫時無法載入'}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{isLoading ? '目前先顯示此裝置上的內容；同步完成後會自動更新。' : '目前畫面可能是此裝置保存的舊內容，尚未確認為最新版本。'}</p>
+          <p className="font-semibold text-[hsl(var(--foreground))]" data-testid="shared-archive-status">{isLoading ? '正在同步共享資料' : '共享資料暫時無法載入'}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]" data-testid="shared-archive-detail">{isLoading ? '目前先顯示此裝置上的內容；同步完成後會自動更新。' : '目前畫面可能是此裝置保存的舊內容，尚未確認為最新版本。'}</p>
         </div>
       </div>
-      {!isLoading && <button type="button" onClick={onRetry} className="btn-outline shrink-0 px-3 py-2 text-xs" data-testid="button-retry-shared-archive"><RefreshCw size={14} />重新載入</button>}
+      {!isLoading && <button type="button" onClick={onRetry} className="shared-archive-retry btn-outline shrink-0 px-3 py-2 text-xs" data-testid="button-retry-shared-archive"><RefreshCw size={14} aria-hidden="true" />重新載入</button>}
     </div>
   </div>;
 }

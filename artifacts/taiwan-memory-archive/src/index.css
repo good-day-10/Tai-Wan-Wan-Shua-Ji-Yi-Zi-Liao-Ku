@@ -132,6 +132,9 @@ button { cursor: pointer; }
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.shared-archive-notice-inner { min-width: 0; }
+.shared-archive-notice-copy { flex: 1 1 auto; }
+.shared-archive-retry { min-height: 2.75rem; white-space: nowrap; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .input-archive { width: 100%; border: 1px solid hsl(var(--border)); border-radius: .65rem; padding: .75rem .85rem; background: hsl(var(--card)); color: hsl(var(--foreground)); }
 .search-input { padding-left: 2.75rem; }
@@ -170,4 +173,6 @@ button { cursor: pointer; }
   .footer-grid { grid-template-columns:1fr; gap:2rem; }
   .memory-image { min-height:180px; }
   .texture::after { opacity:.08; }
+  .shared-archive-notice-inner { flex-direction: column; gap: .75rem; }
+  .shared-archive-retry { width: 100%; }
 }
