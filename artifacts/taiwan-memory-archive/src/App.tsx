@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getArchive as getSharedArchive, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { createDefaultSiteContent as createSharedDefaultSiteContent, normalizeSiteContent as normalizeSharedSiteContent } from './site-content';
+import { getDraggedPosition } from './editor-interactions';
 
 type Memory = {
   id: string;
@@ -488,8 +489,13 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
   const handleInput = () => {
     if (element) onChange(sanitizeStoryHtml(element.innerHTML));
   };
-  const keepSelection = (event: MouseEvent<HTMLButtonElement>) => {
+  const keepSelection = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
+  };
+  const scrollEditorIntoView = () => {
+    window.requestAnimationFrame(() => {
+      element?.scrollIntoView({ block: 'center', inline: 'nearest' });
+    });
   };
   const applyColor = (event: ChangeEvent<HTMLInputElement>) => runCommand('foreColor', event.target.value);
   const initialHtml = value || '<p><br /></p>';
@@ -499,10 +505,10 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
   }, [element, initialHtml, value]);
 
   return <div className="rich-editor-shell mt-2 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-    <div className="rich-toolbar flex flex-wrap items-center gap-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] p-2">
-      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('bold')} className="rich-tool font-bold" title="粗體">B</button>
-      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('italic')} className="rich-tool italic" title="斜體">I</button>
-      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('underline')} className="rich-tool underline" title="底線">U</button>
+    <div className="rich-toolbar flex flex-wrap items-center gap-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] p-2" onPointerDown={saveSelection}>
+      <button type="button" onPointerDown={keepSelection} onClick={() => runCommand('bold')} className="rich-tool font-bold" title="粗體">B</button>
+      <button type="button" onPointerDown={keepSelection} onClick={() => runCommand('italic')} className="rich-tool italic" title="斜體">I</button>
+      <button type="button" onPointerDown={keepSelection} onClick={() => runCommand('underline')} className="rich-tool underline" title="底線">U</button>
       <span className="mx-1 h-5 w-px bg-[hsl(var(--border))]" />
       <select defaultValue="Noto Sans TC" onChange={(event) => runCommand('fontName', event.target.value)} className="rich-select" aria-label="字體">
         <option value="Noto Sans TC">無襯線</option>
@@ -517,9 +523,9 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (html: s
         <option value="5">特大</option>
       </select>
       <label className="rich-color" title="文字顏色"><span className="sr-only">文字顏色</span><input type="color" defaultValue="#15313d" onChange={applyColor} /></label>
-      <button type="button" onMouseDown={keepSelection} onClick={() => runCommand('removeFormat')} className="rich-tool text-xs" title="清除格式">清除格式</button>
+      <button type="button" onPointerDown={keepSelection} onClick={() => runCommand('removeFormat')} className="rich-tool text-xs" title="清除格式">清除格式</button>
     </div>
-    <div ref={setEditorRef} contentEditable suppressContentEditableWarning onInput={handleInput} onMouseUp={saveSelection} onKeyUp={saveSelection} className="rich-editor min-h-[280px] p-4 text-base leading-loose focus:outline-none" data-placeholder="在這裡寫下故事…" role="textbox" aria-label="編輯完整故事" />
+    <div ref={setEditorRef} contentEditable suppressContentEditableWarning onInput={handleInput} onFocus={scrollEditorIntoView} onPointerUp={saveSelection} onSelect={saveSelection} onKeyUp={saveSelection} className="rich-editor min-h-[280px] p-4 text-base leading-loose focus:outline-none" data-placeholder="在這裡寫下故事…" role="textbox" aria-label="編輯完整故事" />
   </div>;
 }
 
@@ -552,17 +558,18 @@ function PageLayoutEditor({ siteContent, onChange }: { siteContent: SiteContent;
   const startDrag = (event: React.PointerEvent<HTMLButtonElement>, block: SiteTextBlock) => {
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A cancelled or synthetic pointer can arrive without an active capture target.
+    }
     setSelectedId(block.id);
     dragRef.current = { id: block.id, startX: event.clientX, startY: event.clientY, x: block.x, y: block.y };
   };
   const moveDraggedBlock = (event: React.PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
-    updateBlock(drag.id, {
-      x: Math.round(drag.x + event.clientX - drag.startX),
-      y: Math.round(drag.y + event.clientY - drag.startY),
-    });
+    updateBlock(drag.id, getDraggedPosition(drag, event.clientX, event.clientY));
   };
   const stopDrag = () => {
     dragRef.current = null;
@@ -588,16 +595,16 @@ function PageLayoutEditor({ siteContent, onChange }: { siteContent: SiteContent;
         <div className="mb-4 flex items-center gap-2 text-xs font-bold tracking-wide text-[hsl(var(--muted-foreground))]"><Layers3 size={15} />頁面結構</div>
         <div className="space-y-1">{sectionOrder.map((section) => { const sectionBlocks = blocksBySection[section] ?? []; const active = selected?.section === section; return <div key={section}><button type="button" onClick={() => sectionBlocks[0] && setSelectedId(sectionBlocks[0].id)} className={`flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left transition ${active ? 'bg-[hsl(var(--primary))] text-white' : 'hover:bg-[hsl(var(--muted))]'}`}><span className="mt-0.5 text-[10px] opacity-60">▾</span><span><span className="block text-sm font-semibold">{section}</span><span className={`mt-0.5 block text-[10px] ${active ? 'text-white/65' : 'text-[hsl(var(--muted-foreground))]'}`}>{sectionDescriptions[section]}</span></span></button>{active && <div className="ml-5 mt-1 space-y-0.5 border-l border-[hsl(var(--border))] pl-2">{sectionBlocks.map((block) => <button key={block.id} type="button" onClick={() => setSelectedId(block.id)} className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] ${selected?.id === block.id ? 'bg-[hsl(var(--muted))] font-bold text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted)/.7)]'}`}><GripVertical size={11} /><span className="truncate">{block.label}</span></button>)}</div>}</div>; })}</div>
       </aside>
-      <section className="min-w-0 bg-[#e9e7e2] p-4 sm:p-6">
+       <section className="min-w-0 bg-[#e9e7e2] p-4 sm:p-6">
         <div className="mb-3 flex items-center justify-between gap-3 text-xs text-[hsl(var(--muted-foreground))]"><span>首頁 / {selected?.section ?? '頁面'}</span><span className="rounded-full bg-white/80 px-3 py-1">預覽模式 · {device === 'desktop' ? '桌面' : device === 'tablet' ? '平板' : '手機'}</span></div>
         <div className={`mx-auto overflow-hidden rounded-xl border border-black/10 bg-white shadow-xl transition-all ${device === 'desktop' ? 'max-w-[700px]' : device === 'tablet' ? 'max-w-[520px]' : 'max-w-[340px]'}`}>
           <div className="flex h-8 items-center gap-1.5 border-b border-black/10 bg-[#f7f7f7] px-3"><span className="h-2.5 w-2.5 rounded-full bg-[#ff605c]" /><span className="h-2.5 w-2.5 rounded-full bg-[#ffbd44]" /><span className="h-2.5 w-2.5 rounded-full bg-[#00ca4e]" /><span className="ml-3 h-3 flex-1 rounded-full bg-black/5" /></div>
           <div className="max-h-[680px] overflow-y-auto">
-            {sectionOrder.map((section) => <div key={section} className={`relative px-5 py-5 ${section === '主視覺' ? 'min-h-[250px]' : 'min-h-[100px]'} ${sectionClassName(section)}`}><div className="mb-3 flex items-center justify-between border-b border-current/10 pb-2 text-[9px] uppercase tracking-[.18em] opacity-40"><span>{section}</span><span>section</span></div><div className="space-y-3">{(blocksBySection[section] ?? []).map((block) => <div key={block.id} onClick={() => setSelectedId(block.id)} className={`group relative rounded-lg transition ${selected?.id === block.id ? 'z-10 outline outline-2 outline-[hsl(var(--secondary))] outline-offset-4' : 'hover:outline hover:outline-1 hover:outline-[hsl(var(--secondary)/.55)] hover:outline-offset-2'}`}><button type="button" onPointerDown={(event) => startDrag(event, block)} onPointerMove={moveDraggedBlock} onPointerUp={stopDrag} onPointerCancel={stopDrag} className={`absolute -left-4 top-1/2 z-20 hidden -translate-y-1/2 cursor-grab rounded-md bg-[hsl(var(--secondary))] p-1 text-white shadow-sm group-hover:block ${selected?.id === block.id ? '!block' : ''}`} aria-label={`拖曳${block.label}`}><Move size={12} /></button><div contentEditable={selected?.id === block.id} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(block.html) }} onInput={(event) => selected?.id === block.id && updateBlock(block.id, { html: sanitizeStoryHtml(event.currentTarget.innerHTML) })} className={`${blockClassName(block)} ${selected?.id === block.id ? 'cursor-text' : 'cursor-pointer'}`} style={{ ...siteBlockStyle(block), display: 'block', width: `${Math.min(block.width, 100)}%`, maxWidth: '100%', transform: `translate(${block.x}px, ${block.y}px)` }} /></div>)}</div></div>)}
+             {sectionOrder.map((section) => <div key={section} className={`relative px-5 py-5 ${section === '主視覺' ? 'min-h-[250px]' : 'min-h-[100px]'} ${sectionClassName(section)}`}><div className="mb-3 flex items-center justify-between border-b border-current/10 pb-2 text-[9px] uppercase tracking-[.18em] opacity-40"><span>{section}</span><span>section</span></div><div className="space-y-3">{(blocksBySection[section] ?? []).map((block) => <div key={block.id} onClick={() => setSelectedId(block.id)} className={`group relative rounded-lg transition ${selected?.id === block.id ? 'z-10 outline outline-2 outline-[hsl(var(--secondary))] outline-offset-4' : 'hover:outline hover:outline-1 hover:outline-[hsl(var(--secondary)/.55)] hover:outline-offset-2'}`}><button type="button" onPointerDown={(event) => startDrag(event, block)} onPointerMove={moveDraggedBlock} onPointerUp={stopDrag} onPointerCancel={stopDrag} onLostPointerCapture={stopDrag} className={`layout-drag-handle absolute -left-4 top-1/2 z-20 hidden -translate-y-1/2 cursor-grab rounded-md bg-[hsl(var(--secondary))] p-1 text-white shadow-sm group-hover:block ${selected?.id === block.id ? '!block' : ''}`} aria-label={`拖曳${block.label}`} data-testid={`button-drag-${block.id}`}><Move size={12} /></button><div contentEditable={selected?.id === block.id} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeStoryHtml(block.html) }} onInput={(event) => selected?.id === block.id && updateBlock(block.id, { html: sanitizeStoryHtml(event.currentTarget.innerHTML) })} className={`${blockClassName(block)} ${selected?.id === block.id ? 'cursor-text' : 'cursor-pointer'}`} style={{ ...siteBlockStyle(block), display: 'block', width: `${Math.min(block.width, 100)}%`, maxWidth: '100%', transform: `translate(${block.x}px, ${block.y}px)` }} /></div>)}</div></div>)}
           </div>
         </div>
       </section>
-      <aside className="border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4 sm:p-5 lg:border-l lg:border-t-0">
+       <aside className="editor-tools-panel min-w-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4 sm:p-5 lg:border-l lg:border-t-0">
         {selected ? <><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold tracking-[.14em] text-[hsl(var(--primary))]">SELECTED ELEMENT</p><h2 className="mt-1 text-lg font-bold">{selected.label}</h2></div><Settings2 size={17} className="mt-1 text-[hsl(var(--muted-foreground))]" /></div><p className="mt-2 rounded-lg bg-[hsl(var(--muted))] px-3 py-2 text-[11px] leading-relaxed text-[hsl(var(--muted-foreground))]">雙擊或直接點擊中間文字即可編輯內容。拖曳文字左側的把手可以移動它。</p><div className="mt-4"><p className="mb-2 text-xs font-bold">文字內容與格式</p><RichTextEditor key={selected.id} value={selected.html} onChange={(html) => updateSelected({ html })} /></div><div className="mt-5 border-t border-[hsl(var(--border))] pt-4"><p className="mb-3 text-xs font-bold">位置與寬度</p><div className="grid grid-cols-2 gap-2"><label className="text-[11px] font-semibold">X 位置<input type="number" value={selected.x} onChange={(event) => updateSelected({ x: Number(event.target.value) || 0 })} className="input-archive mt-1 px-2 py-2 text-xs" /></label><label className="text-[11px] font-semibold">Y 位置<input type="number" value={selected.y} onChange={(event) => updateSelected({ y: Number(event.target.value) || 0 })} className="input-archive mt-1 px-2 py-2 text-xs" /></label><label className="col-span-2 text-[11px] font-semibold">寬度<input type="range" min={10} max={100} value={selected.width} onChange={(event) => updateSelected({ width: Number(event.target.value) })} className="mt-2 w-full accent-[hsl(var(--primary))]" /><span className="mt-1 block text-right text-[10px] font-normal text-[hsl(var(--muted-foreground))]">{selected.width}%</span></label></div><div className="mt-3 flex items-center gap-2"><span className="text-[11px] font-semibold">對齊</span><button type="button" onClick={() => updateSelected({ align: 'left' })} className={`rounded-lg border p-2 ${selected.align === 'left' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--muted))] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))]'}`} aria-label="靠左對齊"><AlignLeft size={14} /></button><button type="button" onClick={() => updateSelected({ align: 'center' })} className={`rounded-lg border p-2 ${selected.align === 'center' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--muted))] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))]'}`} aria-label="置中對齊"><AlignCenter size={14} /></button><button type="button" onClick={() => updateSelected({ align: 'right' })} className={`rounded-lg border p-2 ${selected.align === 'right' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--muted))] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))]'}`} aria-label="靠右對齊"><AlignRight size={14} /></button><button type="button" onClick={() => updateSelected({ x: 0, y: 0, width: 100, align: 'left' })} className="ml-auto text-[11px] font-semibold text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))]">重設</button></div></div></> : <div className="py-10 text-center text-sm text-[hsl(var(--muted-foreground))]">選擇中間的文字開始編輯</div>}
       </aside>
     </div>
@@ -755,7 +762,7 @@ function Editor({ archive, onSave, onCancel, onLock }: { archive: ArchiveData; o
     setShowNew(false);
   };
 
-  return <div className="fixed inset-0 z-40 overflow-y-auto bg-[hsl(var(--background))]">
+  return <div className="editor-scroll-container fixed inset-0 z-40 overflow-y-auto bg-[hsl(var(--background))]">
     <div className="mx-auto min-h-dvh max-w-7xl px-5 pb-20 lg:px-8">
       <div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
