@@ -116,6 +116,7 @@ button { cursor: pointer; }
 .memory-image { min-height: 218px; position: relative; overflow: hidden; }
 .memory-image::before { content: ''; position: absolute; width: 180px; height: 180px; border-radius: 44% 56% 62% 38%; background: rgba(255,255,255,.16); right: -23px; top: -28px; transform: rotate(24deg); }
 .memory-image::after { content: ''; position: absolute; width: 115px; height: 115px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); right: 28px; bottom: 27px; }
+.memory-image-overlay { background: linear-gradient(180deg, rgba(19,43,54,.12), rgba(19,43,54,.72)); }
 .card-stamp { writing-mode: vertical-rl; font-size: .62rem; letter-spacing: .16em; }
 .filter-chip { transition: background .2s, color .2s, transform .2s; }
 .filter-chip:hover { transform: translateY(-1px); }
