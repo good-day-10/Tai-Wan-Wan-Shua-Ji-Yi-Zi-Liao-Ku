@@ -13,6 +13,9 @@ test('shared archive notice exposes loading, failure, and ready branches', async
   assert.match(appSource, /目前畫面可能是此裝置保存的舊內容，尚未確認為最新版本。/);
   assert.match(appSource, /data-testid="button-retry-shared-archive"/);
   assert.match(appSource, /setSharedStatus\('loading'\);\s*setLoadAttempt/);
+  assert.match(appSource, /window\.addEventListener\('online', handleOnline\)/);
+  assert.match(appSource, /sharedStatusRef\.current !== 'error'/);
+  assert.match(appSource, /window\.removeEventListener\('online', handleOnline\)/);
   assert.match(cssSource, /\.shared-archive-retry\s*\{[^}]*min-height:\s*2\.75rem/);
   assert.match(cssSource, /@media \(max-width: 767px\) \{[\s\S]*?\.shared-archive-notice-inner\s*\{[^}]*flex-direction:\s*column/);
   assert.match(cssSource, /@media \(max-width: 767px\) \{[\s\S]*?\.shared-archive-retry\s*\{[^}]*width:\s*100%/);

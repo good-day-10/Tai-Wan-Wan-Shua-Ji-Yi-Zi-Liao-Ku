@@ -935,9 +935,14 @@ function Home() {
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
   const [sharedStatus, setSharedStatus] = useState<SharedArchiveStatus>('loading');
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const sharedStatusRef = useRef<SharedArchiveStatus>('loading');
   const [detail, setDetail] = useState<Memory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const updateSharedStatus = (status: SharedArchiveStatus) => {
+    sharedStatusRef.current = status;
+    setSharedStatus(status);
+  };
   useEffect(() => {
     let active = true;
     getSharedArchive().then((sharedArchive) => {
@@ -949,18 +954,28 @@ function Home() {
       } catch {
         // The shared response is still authoritative when local storage is unavailable.
       }
-      setSharedStatus('ready');
+      updateSharedStatus('ready');
     }).catch(() => {
-      if (active) setSharedStatus('error');
+      if (active) updateSharedStatus('error');
     });
     return () => { active = false; };
   }, [loadAttempt]);
+  useEffect(() => {
+    const handleOnline = () => {
+      if (sharedStatusRef.current !== 'error') return;
+      sharedStatusRef.current = 'loading';
+      setSharedStatus('loading');
+      setLoadAttempt((attempt) => attempt + 1);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
   const retrySharedArchive = () => {
-    setSharedStatus('loading');
+    updateSharedStatus('loading');
     setLoadAttempt((attempt) => attempt + 1);
   };
   const reloadLatestArchive = async () => {
-    setSharedStatus('loading');
+    updateSharedStatus('loading');
     try {
       const sharedArchive = await getSharedArchive({ cache: 'no-store' });
       const normalized = normalizeArchive(sharedArchive);
@@ -970,10 +985,10 @@ function Home() {
       } catch {
         // The shared response is still authoritative when local storage is unavailable.
       }
-      setSharedStatus('ready');
+      updateSharedStatus('ready');
       setEditing(false);
     } catch (error) {
-      setSharedStatus('error');
+      updateSharedStatus('error');
       throw error;
     }
   };
