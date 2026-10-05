@@ -43,7 +43,7 @@ test('unsaved changes prompt manages focus and stays reachable on short mobile s
 
   assert.match(appSource, /unsaved-dialog-backdrop/);
   assert.match(appSource, /unsaved-dialog-panel[^>]*role="dialog"[^>]*aria-modal="true"/);
-  assert.match(appSource, /type="button"[^>]*onClick=\{onSave\}[^>]*data-testid="button-save-before-close"/);
+  assert.match(appSource, /type="button"[^>]*onClick=\{\(\) => void onSave\(\)\}[^>]*data-testid="button-save-before-close"/);
   assert.match(appSource, /type="button"[^>]*onClick=\{onDiscard\}[^>]*data-testid="button-discard-before-close"/);
   assert.match(appSource, /type="button"[^>]*onClick=\{onContinue\}[^>]*data-testid="button-continue-editing"/);
   assert.match(appSource, /const initialFocusTarget = continueButtonRef\.current\?\.\s*disabled \? firstAvailableAction : continueButtonRef\.current/);
@@ -60,7 +60,7 @@ test('failed saves keep the draft and close choices available', async () => {
   const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
 
   assert.match(appSource, /const \[saveError, setSaveError\] = useState<string \| null>\(null\)/);
-  assert.match(appSource, /setSaveError\(null\);\s*try \{\s*await onSave\(draft\)/);
+  assert.match(appSource, /setSaveError\(null\);\s*setSaveConflict\(false\);\s*try \{\s*await onSave\(dataToSave\)/);
   assert.match(appSource, /setSaveError\('保存失敗，這些修改仍保留在編輯器中。/);
   assert.match(appSource, /data-testid="save-error-before-close"[^>]*role="alert"/);
   assert.match(appSource, /pendingCloseAction && <UnsavedChangesDialog saving=\{saving\} error=\{saveError \?\? undefined\}/);
@@ -68,14 +68,16 @@ test('failed saves keep the draft and close choices available', async () => {
   assert.match(appSource, /finally \{\s*setSaving\(false\);\s*\}/);
 });
 
-test('conflict reload fetches and adopts the latest archive without saving the draft', async () => {
+test('conflict comparison fetches the latest archive without replacing or saving the draft', async () => {
   const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
-  const reloadFlow = appSource.match(/const reloadLatestArchive = async \(\) => \{([\s\S]*?)\n  \};/);
+  const reloadFlow = appSource.match(/const loadLatestArchiveForConflictResolution = async \(\): Promise<ArchiveData> => \{([\s\S]*?)\n  \};/);
 
-  assert.ok(reloadFlow, 'the page should have an explicit latest-archive reload flow');
+  assert.ok(reloadFlow, 'the page should have an explicit latest-archive comparison flow');
   assert.match(reloadFlow[1], /getSharedArchive\(\{ cache: 'no-store' \}\)/);
-  assert.match(reloadFlow[1], /setArchive\(normalized\)/);
-  assert.ok(reloadFlow[1].indexOf('setArchive(normalized)') < reloadFlow[1].indexOf('closeEditor()'));
+  assert.match(reloadFlow[1], /return normalized/);
+  assert.doesNotMatch(reloadFlow[1], /setArchive|closeEditor/);
   assert.doesNotMatch(reloadFlow[1], /saveSharedArchive/);
+  assert.match(appSource, /findArchiveConflicts\(latestArchive, draft\)/);
+  assert.match(appSource, /mergeArchiveConflictChoices\(conflictArchive, conflictDiffs, conflictChoices\)/);
   assert.match(appSource, /\.\.\.\(data\.version !== undefined \? \{ expectedVersion: data\.version \} : \{\}\)/);
 });

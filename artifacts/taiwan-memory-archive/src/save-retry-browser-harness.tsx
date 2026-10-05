@@ -29,7 +29,7 @@ function SaveRetryBrowserHarness() {
       }}
       onCancel={() => setEditing(false)}
       onLock={() => setEditing(false)}
-      onReloadLatest={async () => undefined}
+      onReloadLatest={async () => archive}
     /> : <div data-testid="test-editor-closed">
       <p data-testid="test-saved-title">{archive.memories[0]?.title}</p>
     </div>}

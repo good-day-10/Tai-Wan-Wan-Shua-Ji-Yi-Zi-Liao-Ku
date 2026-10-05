@@ -30,7 +30,7 @@ function UnsavedDialogBrowserHarness() {
       }}
       onCancel={() => closeEditor('cancelled')}
       onLock={() => closeEditor('locked')}
-      onReloadLatest={async () => undefined}
+      onReloadLatest={async () => archive}
     />}
   </main>;
 }

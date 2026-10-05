@@ -14,9 +14,7 @@ function ConflictReloadBrowserHarness() {
   const reloadLatest = async () => {
     const response = await fetch('/mock/archive', { cache: 'no-store' });
     if (!response.ok) throw new Error('Latest shared archive could not be loaded');
-    const latestArchive = await response.json() as ArchiveData;
-    setArchive(latestArchive);
-    setEditing(false);
+    return await response.json() as ArchiveData;
   };
 
   return <main className="p-6">

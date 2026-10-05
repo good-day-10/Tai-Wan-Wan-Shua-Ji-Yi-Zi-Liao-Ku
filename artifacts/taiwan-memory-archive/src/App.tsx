@@ -10,6 +10,7 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { createDefaultSiteContent as createSharedDefaultSiteContent, normalizeSiteContent as normalizeSharedSiteContent } from './site-content';
 import { getDraggedPosition } from './editor-interactions';
+import { findArchiveConflicts, formatArchiveConflictValue, mergeArchiveConflictChoices, type ArchiveConflict, type ArchiveConflictChoice } from './archive-conflicts';
 
 type Memory = {
   id: string;
@@ -816,11 +817,11 @@ function UnsavedChangesDialog({ saving, error, conflict, reloadingLatest, onSave
         <div>
           <h2 id="unsaved-changes-title" className="serif text-2xl font-bold">還有尚未保存的修改</h2>
           <p id="unsaved-changes-description" className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">你已經修改了文字或排版。離開編輯模式前，要如何處理這些修改？</p>
-          {error && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-before-close" role="alert"><p>{error}</p>{conflict && <button type="button" disabled={saving || reloadingLatest} onClick={onReloadLatest} className="btn-outline mt-3 min-h-10 w-full justify-center border-[hsl(var(--destructive)/.45)] px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest-before-close"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '重新載入中…' : '重新載入最新資料'}</button>}</div>}
+          {error && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-before-close" role="alert"><p>{error}</p>{conflict && <button type="button" disabled={saving || reloadingLatest} onClick={onReloadLatest} className="btn-outline mt-3 min-h-10 w-full justify-center border-[hsl(var(--destructive)/.45)] px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest-before-close"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '載入最新版本中…' : '比較版本並選擇'}</button>}</div>}
         </div>
       </div>
       <div className="mt-7 grid gap-2 sm:flex sm:flex-row-reverse">
-        <button type="button" disabled={saving} onClick={onSave} className="btn-primary min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-wait disabled:opacity-60" data-testid="button-save-before-close">{saving ? '保存中…' : '保存並離開'}</button>
+        <button type="button" disabled={saving} onClick={() => void onSave()} className="btn-primary min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-wait disabled:opacity-60" data-testid="button-save-before-close">{saving ? '保存中…' : '保存並離開'}</button>
         <button type="button" disabled={saving} onClick={onDiscard} className="btn-outline min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-discard-before-close">放棄修改</button>
         <button ref={continueButtonRef} type="button" disabled={saving} onClick={onContinue} className="btn-ghost min-h-11 w-full justify-center px-4 py-3 text-sm sm:flex-1 disabled:cursor-not-allowed disabled:opacity-60" data-testid="button-continue-editing">繼續編輯</button>
       </div>
@@ -828,7 +829,79 @@ function UnsavedChangesDialog({ saving, error, conflict, reloadingLatest, onSave
   </div>;
 }
 
-export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<void> }) {
+function ConflictResolutionDialog({ conflicts, choices, saving, onChoice, onCancel, onConfirm }: {
+  conflicts: ArchiveConflict[];
+  choices: Record<string, ArchiveConflictChoice>;
+  saving: boolean;
+  onChoice: (id: string, choice: ArchiveConflictChoice) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    cancelButtonRef.current?.focus();
+  }, []);
+
+  const keepFocusInDialog = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'));
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/45 p-4 sm:p-6" role="presentation">
+    <div ref={dialogRef} onKeyDown={keepFocusInDialog} tabIndex={-1} className="mx-auto my-2 max-h-[calc(100dvh-1rem)] w-full max-w-5xl overflow-y-auto rounded-3xl bg-[hsl(var(--background))] p-5 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="archive-conflict-title" data-testid="conflict-resolution-dialog">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="eyebrow text-[hsl(var(--primary))]">VERSION CONFLICT / 版本衝突</p>
+          <h2 id="archive-conflict-title" className="serif mt-2 text-2xl font-bold">比較最新版本與你的草稿</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">每項預設採用伺服器最新內容。你可以逐項改選草稿內容；取消不會修改草稿或保存任何資料。</p>
+        </div>
+        <button ref={cancelButtonRef} type="button" disabled={saving} onClick={onCancel} className="btn-ghost shrink-0" aria-label="取消衝突處理" data-testid="button-cancel-conflict-resolution"><X size={20} /></button>
+      </div>
+
+      {conflicts.length ? <div className="mt-6 space-y-4">
+        {conflicts.map((conflict, index) => {
+          const selectedChoice = choices[conflict.id] ?? 'server';
+          return <fieldset key={conflict.id} className="rounded-2xl border border-[hsl(var(--border))] p-4 sm:p-5" data-testid={`conflict-item-${index}`}>
+            <legend className="px-2 text-sm font-bold">{conflict.label}</legend>
+            <div className="grid gap-3 md:grid-cols-2">
+              {([
+                ['server', '採用伺服器內容', conflict.serverValue],
+                ['draft', '保留草稿內容', conflict.draftValue],
+              ] as const).map(([choice, label, value]) => <label key={choice} className={`block cursor-pointer rounded-xl border p-3 transition ${selectedChoice === choice ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/.06)]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/.45)]'}`}>
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <input type="radio" name={`archive-conflict-${index}`} value={choice} checked={selectedChoice === choice} onChange={() => onChoice(conflict.id, choice)} data-testid={`conflict-choice-${choice}-${index}`} />
+                  {label}
+                </span>
+                <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[hsl(var(--muted)/.55)] p-3 text-xs leading-relaxed" data-testid={`conflict-value-${choice}-${index}`}>{formatArchiveConflictValue(value)}</pre>
+              </label>)}
+            </div>
+          </fieldset>;
+        })}
+      </div> : <p className="mt-6 rounded-xl bg-[hsl(var(--muted))] p-4 text-sm leading-relaxed" data-testid="conflict-no-content-differences">內容沒有差異，但伺服器版本已更新。確認後會使用最新版本號送出保存。</p>}
+
+      <div className="mt-7 flex flex-col-reverse gap-2 border-t border-[hsl(var(--border))] pt-5 sm:flex-row sm:justify-end">
+        <button type="button" disabled={saving} onClick={onCancel} className="btn-outline min-h-11 justify-center px-5" data-testid="button-cancel-conflict-resolution-footer">取消處理</button>
+        <button type="button" disabled={saving} onClick={onConfirm} className="btn-primary min-h-11 justify-center px-5 disabled:cursor-wait disabled:opacity-60" data-testid="button-confirm-conflict-resolution">{saving ? '保存中…' : '確認選擇並保存'}</button>
+      </div>
+    </div>
+  </div>;
+}
+
+export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<ArchiveData> }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -838,6 +911,9 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveConflict, setSaveConflict] = useState(false);
   const [reloadingLatest, setReloadingLatest] = useState(false);
+  const [conflictArchive, setConflictArchive] = useState<ArchiveData | null>(null);
+  const [conflictDiffs, setConflictDiffs] = useState<ArchiveConflict[]>([]);
+  const [conflictChoices, setConflictChoices] = useState<Record<string, ArchiveConflictChoice>>({});
   const [pendingCloseAction, setPendingCloseAction] = useState<'cancel' | 'lock' | null>(null);
   const closeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const hasUnsavedChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(archive), [archive, draft]);
@@ -870,11 +946,12 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
     setPendingCloseAction(null);
     (action === 'lock' ? onLock : onCancel)();
   };
-  const saveDraft = async () => {
+  const saveDraft = async (dataToSave: ArchiveData = draft) => {
     setSaving(true);
     setSaveError(null);
+    setSaveConflict(false);
     try {
-      await onSave(draft);
+      await onSave(dataToSave);
       setSaved(true);
       setTimeout(() => setSaved(false), 2200);
     } catch (error) {
@@ -890,16 +967,29 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
       setSaving(false);
     }
   };
-  const reloadLatest = async () => {
+  const compareLatest = async () => {
     setReloadingLatest(true);
     try {
-      await onReloadLatest();
+      const latestArchive = await onReloadLatest();
+      const conflicts = findArchiveConflicts(latestArchive, draft);
+      setConflictArchive(latestArchive);
+      setConflictDiffs(conflicts);
+      setConflictChoices(Object.fromEntries(conflicts.map((conflict) => [conflict.id, 'server'])));
     } catch {
-      setSaveError('最新資料載入失敗，這些修改仍保留在編輯器中。請稍後再試。');
+      setSaveError('最新資料載入失敗，草稿仍保留。請稍後再次比較。');
       setSaveConflict(true);
     } finally {
       setReloadingLatest(false);
     }
+  };
+  const confirmConflictChoices = async () => {
+    if (!conflictArchive) return;
+    const mergedArchive = mergeArchiveConflictChoices(conflictArchive, conflictDiffs, conflictChoices);
+    setDraft(mergedArchive);
+    setConflictArchive(null);
+    setConflictDiffs([]);
+    setConflictChoices({});
+    await saveDraft(mergedArchive);
   };
   const updateSelected = (field: keyof Memory, value: string) => {
     if (!selectedId) return;
@@ -928,9 +1018,9 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
       <div className="sticky top-0 z-10 -mx-5 mb-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-5 py-4 backdrop-blur lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div><p className="eyebrow text-[hsl(var(--primary))]">EDITOR MODE / 編輯模式</p><h1 className="serif mt-1 text-xl font-bold">整理這些被記住的事</h1></div>
-          <div className="flex gap-2"><button onClick={(event) => requestClose('cancel', event.currentTarget)} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={(event) => requestClose('lock', event.currentTarget)} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={saveDraft} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : '保存變更'}</button></div>
+          <div className="flex gap-2"><button onClick={(event) => requestClose('cancel', event.currentTarget)} className="btn-outline px-3 py-2 text-xs" data-testid="button-cancel-editor">取消</button><button onClick={(event) => requestClose('lock', event.currentTarget)} className="btn-ghost text-xs" data-testid="button-lock-editor"><LockKeyhole size={15} /> 鎖定</button><button disabled={saving} onClick={() => void saveDraft()} className="btn-primary text-xs disabled:cursor-wait disabled:opacity-60" data-testid="button-save-archive">{saving ? '保存中…' : saved ? <><Check size={15} /> 已保存</> : '保存變更'}</button></div>
         </div>
-          {saveError && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert"><p>{saveError}</p>{saveConflict && <button type="button" disabled={saving || reloadingLatest} onClick={reloadLatest} className="btn-outline mt-3 min-h-10 px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '重新載入中…' : '重新載入最新資料'}</button>}</div>}
+          {saveError && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert"><p>{saveError}</p>{saveConflict && <button type="button" disabled={saving || reloadingLatest} onClick={compareLatest} className="btn-outline mt-3 min-h-10 px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '載入最新版本中…' : '比較版本並選擇'}</button>}</div>}
       </div>
       <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
       {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
@@ -959,7 +1049,8 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
       </div>}
     </div>
     {showNew && <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"><div className="modal-panel max-w-sm rounded-3xl bg-[hsl(var(--background))] p-8 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--secondary)/.2)] text-[hsl(var(--secondary))]"><Plus /></div><h2 className="serif mt-5 text-2xl font-bold">放進一段新記憶</h2><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">先建立一張空白收藏卡，再慢慢把故事補完整。</p><div className="mt-6 flex justify-center gap-2"><button onClick={() => setShowNew(false)} className="btn-outline" data-testid="button-cancel-new-memory">先不要</button><button onClick={addNew} className="btn-primary" data-testid="button-confirm-new-memory">建立收藏 <ArrowRight size={15} /></button></div></div></div>}
-    {pendingCloseAction && <UnsavedChangesDialog saving={saving} error={saveError ?? undefined} conflict={saveConflict} reloadingLatest={reloadingLatest} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} onReloadLatest={reloadLatest} />}
+    {pendingCloseAction && <UnsavedChangesDialog saving={saving} error={saveError ?? undefined} conflict={saveConflict} reloadingLatest={reloadingLatest} onSave={saveDraft} onDiscard={discardChanges} onContinue={continueEditing} onReloadLatest={compareLatest} />}
+    {conflictArchive && <ConflictResolutionDialog conflicts={conflictDiffs} choices={conflictChoices} saving={saving} onChoice={(id, choice) => setConflictChoices((current) => ({ ...current, [id]: choice }))} onCancel={() => setConflictArchive(null)} onConfirm={confirmConflictChoices} />}
   </div>;
 }
 
@@ -1030,19 +1121,13 @@ function Home() {
     updateSharedStatus('loading');
     setLoadAttempt((attempt) => attempt + 1);
   };
-  const reloadLatestArchive = async () => {
+  const loadLatestArchiveForConflictResolution = async (): Promise<ArchiveData> => {
     updateSharedStatus('loading');
     try {
       const sharedArchive = await getSharedArchive({ cache: 'no-store' });
       const normalized = normalizeArchive(sharedArchive);
-      setArchive(normalized);
-      try {
-        localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
-      } catch {
-        // The shared response is still authoritative when local storage is unavailable.
-      }
       updateSharedStatus('ready');
-      closeEditor();
+      return normalized;
     } catch (error) {
       updateSharedStatus('error');
       throw error;
@@ -1071,8 +1156,8 @@ function Home() {
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={reloadLatestArchive} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={reloadLatestArchive} />}</div>;
+  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
 }
 
 function Router() {
