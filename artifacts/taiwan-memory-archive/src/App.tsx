@@ -47,7 +47,7 @@ type CustomPage = {
 };
 
 type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
-type ArchiveData = { version?: number; introduction: string; memories: Memory[]; siteContent: SiteContent };
+export type ArchiveData = { version?: number; introduction: string; memories: Memory[]; siteContent: SiteContent };
 type SharedArchiveStatus = 'loading' | 'ready' | 'error';
 
 function isArchiveConflictError(error: unknown): boolean {
@@ -162,7 +162,7 @@ const seedData: ArchiveData = {
 const categories = ['全部', '童玩', '巷弄遊戲', '家族手作', '電玩時光', '集體遊戲', '童謠遊戲'];
 const queryClient = new QueryClient();
 
-function loadArchive(): ArchiveData {
+export function loadArchive(): ArchiveData {
   try {
     const stored = localStorage.getItem('taiwan-memory-archive');
     if (stored) return normalizeArchive(JSON.parse(stored) as ArchiveData);
@@ -798,7 +798,7 @@ function UnsavedChangesDialog({ saving, error, conflict, reloadingLatest, onSave
   </div>;
 }
 
-function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<void> }) {
+export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<void> }) {
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);

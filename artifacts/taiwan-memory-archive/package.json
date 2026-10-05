@@ -9,11 +9,13 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/site-content.test.ts src/editor-interactions.test.ts src/shared-archive-notice.test.ts",
+    "test:e2e": "playwright test",
     "test:archive-integration": "RUN_ARCHIVE_INTEGRATION=1 tsx --test src/archive-persistence.integration.test.ts"
   },
   "devDependencies": {
     "@clerk/backend": "^3.18.1",
     "@hookform/resolvers": "^3.10.0",
+    "@playwright/test": "^1.63.0",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.3",
