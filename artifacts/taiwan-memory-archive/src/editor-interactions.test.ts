@@ -67,3 +67,15 @@ test('failed saves keep the draft and close choices available', async () => {
   assert.match(appSource, /data-testid="save-error-editor"[^>]*role="alert"/);
   assert.match(appSource, /finally \{\s*setSaving\(false\);\s*\}/);
 });
+
+test('conflict reload fetches and adopts the latest archive without saving the draft', async () => {
+  const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
+  const reloadFlow = appSource.match(/const reloadLatestArchive = async \(\) => \{([\s\S]*?)\n  \};/);
+
+  assert.ok(reloadFlow, 'the page should have an explicit latest-archive reload flow');
+  assert.match(reloadFlow[1], /getSharedArchive\(\{ cache: 'no-store' \}\)/);
+  assert.match(reloadFlow[1], /setArchive\(normalized\)/);
+  assert.ok(reloadFlow[1].indexOf('setArchive(normalized)') < reloadFlow[1].indexOf('closeEditor()'));
+  assert.doesNotMatch(reloadFlow[1], /saveSharedArchive/);
+  assert.match(appSource, /\.\.\.\(data\.version !== undefined \? \{ expectedVersion: data\.version \} : \{\}\)/);
+});
