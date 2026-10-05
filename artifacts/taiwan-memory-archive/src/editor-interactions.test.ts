@@ -37,7 +37,7 @@ test('editor gate only exposes the password field after Clerk confirms sign-in',
   assert.match(appSource, /data-testid="input-editor-password"/);
 });
 
-test('unsaved changes choices stay reachable on short mobile screens', async () => {
+test('unsaved changes prompt manages focus and stays reachable on short mobile screens', async () => {
   const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
   const cssSource = await readFile(new URL('./index.css', import.meta.url), 'utf8');
 
@@ -46,7 +46,10 @@ test('unsaved changes choices stay reachable on short mobile screens', async () 
   assert.match(appSource, /type="button"[^>]*onClick=\{onSave\}[^>]*data-testid="button-save-before-close"/);
   assert.match(appSource, /type="button"[^>]*onClick=\{onDiscard\}[^>]*data-testid="button-discard-before-close"/);
   assert.match(appSource, /type="button"[^>]*onClick=\{onContinue\}[^>]*data-testid="button-continue-editing"/);
-  assert.match(appSource, /const continueEditing = \(\) => setPendingCloseAction\(null\)/);
+  assert.match(appSource, /const initialFocusTarget = continueButtonRef\.current\?\.\s*disabled \? firstAvailableAction : continueButtonRef\.current/);
+  assert.match(appSource, /onKeyDown=\{keepFocusInDialog\}/);
+  assert.match(appSource, /const continueEditing = \(\) => \{\s*setPendingCloseAction\(null\);\s*requestAnimationFrame\(\(\) => \{\s*if \(closeTriggerRef\.current\?\.isConnected\) closeTriggerRef\.current\.focus\(\)/);
+  assert.match(appSource, /const restoreEditorEntryFocus = \(\) => \{\s*requestAnimationFrame\(\(\) => \{\s*const trigger = editorEntryTriggerRef\.current/);
   assert.match(appSource, /\(action === 'lock' \? onLock : onCancel\)\(\)/);
   assert.match(cssSource, /\.unsaved-dialog-backdrop\s*\{[^}]*overflow-y:\s*auto/);
   assert.match(cssSource, /\.unsaved-dialog-panel\s*\{[^}]*max-height:\s*calc\(100dvh - 2rem\)/);

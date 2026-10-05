@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Editor, loadArchive, type ArchiveData } from './App';
 import './index.css';
@@ -9,31 +9,30 @@ function UnsavedDialogBrowserHarness() {
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
   const [editing, setEditing] = useState(true);
   const [outcome, setOutcome] = useState<CloseOutcome | null>(null);
+  const editorEntryRef = useRef<HTMLButtonElement>(null);
 
-  if (!editing) {
-    return <main className="p-6" data-testid="test-editor-closed">
+  const closeEditor = (nextOutcome: CloseOutcome) => {
+    setOutcome(nextOutcome);
+    setEditing(false);
+    requestAnimationFrame(() => editorEntryRef.current?.focus());
+  };
+
+  return <main className="p-6">
+    <button ref={editorEntryRef} type="button" onClick={() => setEditing(true)} data-testid="test-editor-entry">進入編輯器</button>
+    {!editing ? <div data-testid="test-editor-closed">
       <p data-testid="test-close-outcome">{outcome}</p>
       <p data-testid="test-saved-title">{archive.memories[0]?.title}</p>
-    </main>;
-  }
-
-  return <Editor
-    archive={archive}
-    onSave={async (nextArchive) => {
-      setArchive(nextArchive);
-      setOutcome('saved');
-      setEditing(false);
-    }}
-    onCancel={() => {
-      setOutcome('cancelled');
-      setEditing(false);
-    }}
-    onLock={() => {
-      setOutcome('locked');
-      setEditing(false);
-    }}
-    onReloadLatest={async () => undefined}
-  />;
+    </div> : <Editor
+      archive={archive}
+      onSave={async (nextArchive) => {
+        setArchive(nextArchive);
+        closeEditor('saved');
+      }}
+      onCancel={() => closeEditor('cancelled')}
+      onLock={() => closeEditor('locked')}
+      onReloadLatest={async () => undefined}
+    />}
+  </main>;
 }
 
 createRoot(document.getElementById('root')!).render(<UnsavedDialogBrowserHarness />);

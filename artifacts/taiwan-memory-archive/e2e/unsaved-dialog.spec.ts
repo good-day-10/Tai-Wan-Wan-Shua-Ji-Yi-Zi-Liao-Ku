@@ -13,6 +13,7 @@ const closeScenarios = [
   { name: 'discard after cancel', closeButton: 'button-cancel-editor', choiceButton: 'button-discard-before-close', outcome: 'cancelled' },
   { name: 'discard after locking', closeButton: 'button-lock-editor', choiceButton: 'button-discard-before-close', outcome: 'locked' },
   { name: 'continue editing', closeButton: 'button-cancel-editor', choiceButton: 'button-continue-editing', outcome: null },
+  { name: 'continue editing after locking', closeButton: 'button-lock-editor', choiceButton: 'button-continue-editing', outcome: null },
 ] as const;
 
 async function activate(page: Page, locator: Locator, input: InputMethod) {
@@ -37,6 +38,7 @@ async function activate(page: Page, locator: Locator, input: InputMethod) {
 async function expectDialogActionsReachable(page: Page, viewportHeight: number) {
   const dialog = page.getByRole('dialog', { name: '還有尚未保存的修改' });
   await expect(dialog).toBeVisible();
+  await expect(page.getByTestId('button-continue-editing')).toBeFocused();
 
   for (const testId of [
     'button-save-before-close',
@@ -84,10 +86,12 @@ for (const viewport of viewportScenarios) {
           await expect(page.getByTestId('test-saved-title')).toHaveText(
             scenario.outcome === 'saved' ? draftTitle : originalTitle,
           );
+          await expect(page.getByTestId('test-editor-entry')).toBeFocused();
           return;
         }
 
         await expect(page.getByRole('dialog', { name: '還有尚未保存的修改' })).toHaveCount(0);
+        await expect(page.getByTestId(scenario.closeButton)).toBeFocused();
         await expect(titleInput).toHaveValue(draftTitle);
         await expect(page.getByTestId('test-editor-closed')).toHaveCount(0);
         await expect(page.getByTestId(scenario.closeButton)).toBeVisible();
@@ -100,3 +104,17 @@ for (const viewport of viewportScenarios) {
     });
   }
 }
+
+test('keyboard focus stays inside the unsaved changes prompt', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/unsaved-dialog-browser-harness.html');
+  await page.locator('[data-testid^="button-edit-memory-"]').first().click();
+  await page.locator('[data-testid^="input-memory-title-"]').first().fill('鍵盤焦點測試');
+  await page.getByTestId('button-cancel-editor').click();
+  await expectDialogActionsReachable(page, 900);
+
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('button-save-before-close')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByTestId('button-continue-editing')).toBeFocused();
+});
