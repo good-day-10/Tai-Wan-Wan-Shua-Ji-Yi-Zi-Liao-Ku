@@ -8,3 +8,9 @@ Visitor access and editor access are intentionally separate: GET archive remains
 **Why:** The archive must remain easy to browse, the owner needs a lower-friction editing path, and a user-bound cookie alone survives a same-account session change. The editor password must never be shipped in the public bundle or exposed in error messages.
 
 **How to apply:** Keep editor credentials out of frontend code, localStorage, API responses, and save requests. Any new write endpoint must require the matching active Clerk user/session and the server-side editor-access marker; do not try to identify an unauthenticated browser as the owner.
+
+Independent archive copies may reuse the Clerk tenant, owner rule, and editor password, but must isolate the stored archive identity, optimistic revision stream, browser cache key, and signed editor-access cookie. Do not let one site's unlock or stale local cache authorize or populate another site.
+
+**Why:** Copies are meant to evolve independently even though they share the same editor policy; reusing any per-site state can leak draft data or permit unintended writes across sites.
+
+**How to apply:** When adding another copy, give it dedicated read/save endpoints and cookie/cache identifiers, then verify that cross-site cookies fail and a save remains isolated from the source archive.
