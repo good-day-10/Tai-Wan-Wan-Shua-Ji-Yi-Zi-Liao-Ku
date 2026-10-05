@@ -6,13 +6,15 @@ import { defaultSiteBlocks } from './site-content';
 const apiBaseUrl = (process.env.ARCHIVE_TEST_BASE_URL ?? 'http://localhost:80/api').replace(/\/$/, '');
 const configuredTestSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE?.trim();
 const clerkSecretKey = process.env.CLERK_SECRET_KEY?.trim();
-const testUserId = process.env.ARCHIVE_TEST_USER_ID?.trim();
+let testUserId = process.env.ARCHIVE_TEST_USER_ID?.trim();
 const testUserEmail = process.env.ARCHIVE_TEST_USER_EMAIL?.trim() || 'archive-integration-test@example.com';
 const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1'
   && Boolean(configuredTestSessionCookie || clerkSecretKey);
+const canCreateAdditionalTestSession = Boolean(clerkSecretKey && (testUserId || !configuredTestSessionCookie));
 const editorPassword = process.env.ARCHIVE_EDITOR_PASSWORD;
 let testSessionCookie = configuredTestSessionCookie;
 let editorCookie = testSessionCookie;
+let editorAccessCookie: string | undefined;
 let testSessionAuthorization: string | undefined;
 let testSessionId: string | undefined;
 
@@ -20,14 +22,18 @@ async function requestJson(
   path: string,
   options?: RequestInit,
   cookie: string | null | undefined = editorCookie,
+  authorization?: string | null,
 ): Promise<{ response: Response; body: Record<string, unknown> }> {
   const requestCookie = cookie ?? undefined;
+  const requestAuthorization = authorization === undefined
+    ? (requestCookie ? testSessionAuthorization : undefined)
+    : authorization ?? undefined;
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers: {
       'content-type': 'application/json',
       ...(requestCookie ? { cookie: requestCookie } : {}),
-      ...(requestCookie && testSessionAuthorization ? { authorization: testSessionAuthorization } : {}),
+      ...(requestAuthorization ? { authorization: requestAuthorization } : {}),
       ...(options?.headers ?? {}),
     },
   });
@@ -77,6 +83,7 @@ async function getOrCreateTestSessionCookie(): Promise<string> {
       userId = user.id;
     }
   }
+  testUserId = userId;
 
   const session = await clerk.sessions.createSession({ userId });
   testSessionId = session.id;
@@ -106,6 +113,7 @@ async function unlockForTest(): Promise<void> {
     .filter(Boolean);
   assert.ok(accessCookies.length > 0, 'Editor unlock should issue an access cookie');
   assert.ok(getSetCookieHeaders(response).some((value) => /HttpOnly/i.test(value)));
+  editorAccessCookie = accessCookies[0];
   editorCookie = `${testSessionCookie}; ${accessCookies.join('; ')}`;
 }
 
@@ -153,6 +161,45 @@ test('editor unlock rejects unauthenticated and incorrect credentials without re
   assert.equal(JSON.stringify(incorrect.body).includes('wrong-editor-password'), false);
   if (editorPassword) assert.equal(JSON.stringify(incorrect.body).includes(editorPassword), false);
   assert.equal(getSetCookieHeaders(incorrect.response).length, 0);
+});
+
+test('an old editor cookie cannot save after sign-out or a Clerk session change', { skip: !shouldRun }, async () => {
+  assert.ok(editorAccessCookie);
+  const original = await requestArchive({ cache: 'no-store' }, undefined);
+  const saveOptions = {
+    method: 'PUT',
+    body: JSON.stringify({
+      archive: original,
+      expectedVersion: original.version,
+    }),
+  };
+
+  const signedOutSave = await requestJson('/archive', saveOptions, editorAccessCookie, null);
+  assert.equal(signedOutSave.response.status, 401);
+  assert.deepEqual(signedOutSave.body, { error: 'Authentication required' });
+
+  const publicRead = await requestArchive({ cache: 'no-store' }, undefined);
+  assert.equal(publicRead.version, original.version);
+
+  if (!canCreateAdditionalTestSession || !testUserId || !clerkSecretKey) return;
+
+  const clerk = createClerkClient({ secretKey: clerkSecretKey });
+  const nextSession = await clerk.sessions.createSession({ userId: testUserId });
+  try {
+    const token = await clerk.sessions.getToken(nextSession.id);
+    assert.ok(token.jwt);
+
+    const sessionChangedSave = await requestJson(
+      '/archive',
+      saveOptions,
+      editorAccessCookie,
+      `Bearer ${token.jwt}`,
+    );
+    assert.equal(sessionChangedSave.response.status, 401);
+    assert.deepEqual(sessionChangedSave.body, { error: 'Editor access required' });
+  } finally {
+    await clerk.sessions.revokeSession(nextSession.id);
+  }
 });
 
 test('saved page content is returned to separate visitor reads', { skip: !shouldRun }, async () => {

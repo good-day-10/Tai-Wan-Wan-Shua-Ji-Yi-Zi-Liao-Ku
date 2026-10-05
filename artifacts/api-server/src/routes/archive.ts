@@ -25,9 +25,14 @@ function requireSignedIn(req: Request, res: Response, next: NextFunction): void 
   next();
 }
 
+function getEditorSessionIdentity(req: Request): string | undefined {
+  const { userId, sessionId } = getAuth(req);
+  return userId && sessionId ? `${userId}:${sessionId}` : undefined;
+}
+
 function hasEditorAccess(req: Request): boolean {
-  const { userId } = getAuth(req);
-  return Boolean(userId && req.signedCookies?.[EDITOR_COOKIE] === userId);
+  const sessionIdentity = getEditorSessionIdentity(req);
+  return Boolean(sessionIdentity && req.signedCookies?.[EDITOR_COOKIE] === sessionIdentity);
 }
 
 async function isOwner(req: Request): Promise<boolean> {
@@ -94,12 +99,12 @@ router.post("/editor/unlock", requireSignedIn, async (req, res): Promise<void> =
     }
   }
 
-  const { userId } = getAuth(req);
-  if (!userId) {
+  const sessionIdentity = getEditorSessionIdentity(req);
+  if (!sessionIdentity) {
     res.status(401).json({ error: "Authentication required" });
     return;
   }
-  res.cookie(EDITOR_COOKIE, userId, {
+  res.cookie(EDITOR_COOKIE, sessionIdentity, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
