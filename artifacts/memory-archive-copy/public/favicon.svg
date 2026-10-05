@@ -1,14 +1,31 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <linearGradient id="base" x1="90" y1="0" x2="90" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C1117"/>
+      <stop offset="1" stop-color="#05080C"/>
+    </linearGradient>
+    <pattern id="grid" width="18" height="18" patternUnits="userSpaceOnUse">
+      <path d="M18 0H0V18" stroke="#91AAB5" stroke-opacity=".055" stroke-width=".7"/>
+    </pattern>
+    <linearGradient id="edge" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7894A0" stop-opacity=".48"/>
+      <stop offset="1" stop-color="#7894A0" stop-opacity=".12"/>
+    </linearGradient>
     <clipPath id="logo-clip">
-      <rect x="3" y="3" width="174" height="174" rx="39"/>
+      <rect x="3" y="3" width="174" height="174" rx="31"/>
     </clipPath>
   </defs>
-  <rect width="180" height="180" rx="42" fill="#8ED8F8"/>
   <g clip-path="url(#logo-clip)">
-    <path d="M55 71C71 73 80 84 98 99" stroke="#101820" stroke-width="8" stroke-linecap="round" opacity=".72"/>
-    <path d="M57 72C72 75 81 86 96 99" stroke="#D94235" stroke-width="2.5" stroke-linecap="round" opacity=".9"/>
-    <text x="7" y="81" fill="#101820" stroke="#101820" stroke-width=".8" paint-order="stroke fill" font-family="Kaiti TC, BiauKai, DFKai-SB, STKaiti, Noto Serif TC, serif" font-size="78" font-weight="700" letter-spacing="-2">少</text>
-    <text x="73" y="163" fill="#D94235" stroke="#D94235" stroke-width=".8" paint-order="stroke fill" font-family="Kaiti TC, BiauKai, DFKai-SB, STKaiti, Noto Serif TC, serif" font-size="78" font-weight="700" letter-spacing="-2">導</text>
+    <rect x="3" y="3" width="174" height="174" rx="31" fill="url(#base)"/>
+    <rect x="3" y="3" width="174" height="174" fill="url(#grid)"/>
+    <path d="M18 49V19H48M132 19H162V49M18 131V161H48M132 161H162V131" stroke="#718B97" stroke-opacity=".48" stroke-width="1.2"/>
+    <circle cx="90" cy="94" r="1.6" fill="#829BA6" fill-opacity=".72"/>
+    <path d="M54 94H76M104 94H126" stroke="#718B97" stroke-opacity=".35" stroke-width="1"/>
+    <text x="66" y="78" text-anchor="middle" fill="#AFC3CA" font-family="Noto Sans TC, Microsoft JhengHei, PingFang TC, sans-serif" font-size="42" font-weight="800">少</text>
+    <text x="114" y="78" text-anchor="middle" fill="#8EA7B1" font-family="Noto Sans TC, Microsoft JhengHei, PingFang TC, sans-serif" font-size="42" font-weight="800">年</text>
+    <text x="39" y="140" text-anchor="middle" fill="#A3B7BF" font-family="Noto Sans TC, Microsoft JhengHei, PingFang TC, sans-serif" font-size="32" font-weight="800">導</text>
+    <text x="90" y="140" text-anchor="middle" fill="#77949F" font-family="Noto Sans TC, Microsoft JhengHei, PingFang TC, sans-serif" font-size="32" font-weight="800">覽</text>
+    <text x="141" y="140" text-anchor="middle" fill="#849EAA" font-family="Noto Sans TC, Microsoft JhengHei, PingFang TC, sans-serif" font-size="32" font-weight="800">隊</text>
   </g>
+  <rect x="3.75" y="3.75" width="172.5" height="172.5" rx="30.25" stroke="url(#edge)" stroke-width="1.5"/>
 </svg>

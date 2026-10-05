@@ -257,8 +257,8 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
     <header className="masthead relative z-30">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
         <a href="#top" className="flex items-center gap-3" data-testid="link-home">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]">
-            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-10 w-10 rounded-full object-cover" />
+          <span className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+            <img src={`${import.meta.env.BASE_URL}favicon.svg?v=2`} alt="" className="h-full w-full object-cover" />
           </span>
           <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TEEN GUIDE SQUAD" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="少年導覽隊" className="serif text-lg font-bold" /></span>
         </a>
@@ -493,7 +493,6 @@ function MemoryImagesField({ images, inputId, onChange }: { images: string[]; in
       <div><p className="text-sm font-semibold">故事圖片</p><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">第一張圖片會用在故事卡片與詳情背景，也可以一次上傳多張。</p></div>
       <label htmlFor={inputId} className="btn-outline cursor-pointer px-3 py-2 text-xs"><ImagePlus size={15} /> 新增圖片<input id={inputId} type="file" accept="image/*" multiple onChange={handleFileChange} className="sr-only" /></label>
     </div>
-    {images.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={`${inputId}-${index}`} className="group relative overflow-hidden rounded-xl border border-[hsl(var(--border))]"><img src={image} alt={`故事圖片 ${index + 1} 預覽`} className="aspect-[4/3] w-full object-cover" /><div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-[hsl(var(--primary)/.78)] px-2 py-1.5 text-[11px] text-white backdrop-blur-sm"><span>{index === 0 ? '背景圖片' : `圖片 ${index + 1}`}</span><button type="button" onClick={() => onChange(images.filter((_, imageIndex) => imageIndex !== index))} className="rounded-full px-1.5 py-0.5 font-semibold hover:bg-white/15">移除</button></div></div>)}</div> : <div className="mt-4 flex min-h-28 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-5 text-center text-xs leading-relaxed text-[hsl(var(--muted-foreground))]"><div><ImagePlus className="mx-auto mb-2 text-[hsl(var(--secondary))]" size={22} /><p>選擇一張或多張圖片，讓這段故事有自己的畫面。</p></div></div>}
     {error && <p className="mt-3 text-xs text-[hsl(var(--destructive))]" role="alert">{error}</p>}
   </div>;
 }
