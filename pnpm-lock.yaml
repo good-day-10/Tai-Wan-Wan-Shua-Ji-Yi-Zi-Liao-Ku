@@ -422,6 +422,9 @@ importers:
         specifier: ^2.4.57
         version: 2.4.57(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
+      '@clerk/backend':
+        specifier: ^3.18.1
+        version: 3.18.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.87.0(react@19.1.0))
@@ -3335,7 +3338,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@clerk/backend@3.18.1':
+  '@clerk/backend@3.18.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@clerk/shared': 4.33.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       standardwebhooks: 1.1.1
@@ -3346,7 +3349,7 @@ snapshots:
 
   '@clerk/express@2.1.69(express@5.2.1)':
     dependencies:
-      '@clerk/backend': 3.18.1
+      '@clerk/backend': 3.18.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@clerk/shared': 4.33.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       express: 5.2.1
       tslib: 2.8.1

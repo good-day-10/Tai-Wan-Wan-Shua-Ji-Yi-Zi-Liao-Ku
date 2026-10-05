@@ -1,23 +1,33 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createClerkClient } from '@clerk/backend';
 import { defaultSiteBlocks } from './site-content';
 
 const apiBaseUrl = (process.env.ARCHIVE_TEST_BASE_URL ?? 'http://localhost:80/api').replace(/\/$/, '');
-const testSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE;
-const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1' && Boolean(testSessionCookie);
+const configuredTestSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE?.trim();
+const clerkSecretKey = process.env.CLERK_SECRET_KEY?.trim();
+const testUserId = process.env.ARCHIVE_TEST_USER_ID?.trim();
+const testUserEmail = process.env.ARCHIVE_TEST_USER_EMAIL?.trim() || 'archive-integration-test@example.com';
+const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1'
+  && Boolean(configuredTestSessionCookie || clerkSecretKey);
 const editorPassword = process.env.ARCHIVE_EDITOR_PASSWORD;
+let testSessionCookie = configuredTestSessionCookie;
 let editorCookie = testSessionCookie;
+let testSessionAuthorization: string | undefined;
+let testSessionId: string | undefined;
 
 async function requestJson(
   path: string,
   options?: RequestInit,
-  cookie: string | undefined = editorCookie,
+  cookie: string | null | undefined = editorCookie,
 ): Promise<{ response: Response; body: Record<string, unknown> }> {
+  const requestCookie = cookie ?? undefined;
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers: {
       'content-type': 'application/json',
-      ...(cookie ? { cookie } : {}),
+      ...(requestCookie ? { cookie: requestCookie } : {}),
+      ...(requestCookie && testSessionAuthorization ? { authorization: testSessionAuthorization } : {}),
       ...(options?.headers ?? {}),
     },
   });
@@ -26,7 +36,7 @@ async function requestJson(
 
 async function requestArchive(
   options?: RequestInit,
-  cookie: string | undefined = editorCookie,
+  cookie: string | null | undefined = editorCookie,
 ): Promise<Record<string, unknown>> {
   const { response, body } = await requestJson('/archive', options, cookie);
   assert.equal(response.ok, true, JSON.stringify(body));
@@ -35,7 +45,7 @@ async function requestArchive(
 
 async function requestArchiveWithStatus(
   options?: RequestInit,
-  cookie: string | undefined = editorCookie,
+  cookie: string | null | undefined = editorCookie,
 ): Promise<{ response: Response; body: Record<string, unknown> }> {
   return requestJson('/archive', options, cookie);
 }
@@ -47,9 +57,38 @@ function getSetCookieHeaders(response: Response): string[] {
   return header ? [header] : [];
 }
 
+async function getOrCreateTestSessionCookie(): Promise<string> {
+  if (configuredTestSessionCookie) return configuredTestSessionCookie;
+  assert.ok(clerkSecretKey, 'CLERK_SECRET_KEY is required when ARCHIVE_TEST_SESSION_COOKIE is not set');
+
+  const clerk = createClerkClient({ secretKey: clerkSecretKey });
+  let userId = testUserId;
+  if (!userId) {
+    const matchingUsers = await clerk.users.getUserList({
+      emailAddress: [testUserEmail],
+      limit: 1,
+    });
+    userId = matchingUsers.data[0]?.id;
+    if (!userId) {
+      const user = await clerk.users.createUser({
+        emailAddress: [testUserEmail],
+        skipPasswordRequirement: true,
+      });
+      userId = user.id;
+    }
+  }
+
+  const session = await clerk.sessions.createSession({ userId });
+  testSessionId = session.id;
+  const token = await clerk.sessions.getToken(session.id);
+  assert.ok(token.jwt, 'Clerk did not return a test session token');
+  testSessionAuthorization = `Bearer ${token.jwt}`;
+  return `__session=${token.jwt}`;
+}
+
 async function unlockForTest(): Promise<void> {
   assert.ok(editorPassword, 'ARCHIVE_EDITOR_PASSWORD is required for editor integration tests');
-  assert.ok(testSessionCookie, 'ARCHIVE_TEST_SESSION_COOKIE is required for editor integration tests');
+  assert.ok(testSessionCookie, 'A Clerk test session is required for editor integration tests');
 
   const { response, body } = await requestJson(
     '/editor/unlock',
@@ -66,16 +105,25 @@ async function unlockForTest(): Promise<void> {
     .map((value) => value.split(';', 1)[0])
     .filter(Boolean);
   assert.ok(accessCookies.length > 0, 'Editor unlock should issue an access cookie');
-  assert.match(getSetCookieHeaders(response).join('; '), /HttpOnly/i);
+  assert.ok(getSetCookieHeaders(response).some((value) => /HttpOnly/i.test(value)));
   editorCookie = `${testSessionCookie}; ${accessCookies.join('; ')}`;
 }
 
 test.before(async () => {
-  if (shouldRun) await unlockForTest();
+  if (!shouldRun) return;
+  testSessionCookie = await getOrCreateTestSessionCookie();
+  editorCookie = testSessionCookie;
+  await unlockForTest();
+});
+
+test.after(async () => {
+  if (!testSessionId || !clerkSecretKey) return;
+  const clerk = createClerkClient({ secretKey: clerkSecretKey });
+  await clerk.sessions.revokeSession(testSessionId);
 });
 
 test('editor unlock rejects unauthenticated and incorrect credentials without revealing secrets', { skip: !shouldRun }, async () => {
-  const unauthenticatedStatus = await requestJson('/editor/status', undefined, undefined);
+  const unauthenticatedStatus = await requestJson('/editor/status', undefined, null);
   assert.deepEqual(unauthenticatedStatus.body, { authenticated: false, owner: false });
 
   const authenticatedStatus = await requestJson('/editor/status', undefined, testSessionCookie);
@@ -87,7 +135,7 @@ test('editor unlock rejects unauthenticated and incorrect credentials without re
       method: 'POST',
       body: JSON.stringify({ editorPassword: 'wrong-editor-password' }),
     },
-    undefined,
+    null,
   );
   assert.equal(unauthenticated.response.status, 401, JSON.stringify(unauthenticated.body));
   assert.deepEqual(unauthenticated.body, { error: 'Authentication required' });

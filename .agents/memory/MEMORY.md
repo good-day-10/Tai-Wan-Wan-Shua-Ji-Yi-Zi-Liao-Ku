@@ -3,3 +3,4 @@
 - [Archive concurrency protection](archive-concurrency.md) — full-archive saves must carry the latest server version and reject stale drafts.
 - [Rich editor selection handling](rich-editor-selection.md) — formatting commands should prefer the live contentEditable selection before restoring a saved Range.
 - [Archive editor authentication](archive-editor-auth.md) — visitor reads stay public; editor writes require Clerk authentication plus a server-validated unlock.
+- [Clerk integration test sessions](clerk-test-sessions.md) — backend-created sessions authenticate reliably via Authorization in development instances; raw cookies may need browser state.
