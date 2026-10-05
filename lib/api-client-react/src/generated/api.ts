@@ -298,6 +298,172 @@ export const useSaveArchive = <TError = ErrorType<void>,
       return useMutation(getSaveArchiveMutationOptions(options));
     }
 
+export const getGetArchiveCopyUrl = () => {
+
+
+
+
+  return `/api/archive-copy`
+}
+
+/**
+ * Initializes the copy from the main archive on first read, then returns its independent data.
+ * @summary Get the independent archive copy
+ */
+export const getArchiveCopy = async ( options?: Parameters<typeof customFetch>[1]): Promise<Archive> => {
+
+  return customFetch<Archive>(getGetArchiveCopyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetArchiveCopyQueryKey = () => {
+    return [
+    `/api/archive-copy`
+    ] as const;
+    }
+
+
+export const getGetArchiveCopyQueryOptions = <TData = Awaited<ReturnType<typeof getArchiveCopy>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveCopy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetArchiveCopyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getArchiveCopy>>> = ({ signal }) => getArchiveCopy({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getArchiveCopy>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetArchiveCopyQueryResult = NonNullable<Awaited<ReturnType<typeof getArchiveCopy>>>
+export type GetArchiveCopyQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the independent archive copy
+ */
+
+export function useGetArchiveCopy<TData = Awaited<ReturnType<typeof getArchiveCopy>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveCopy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetArchiveCopyQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveArchiveCopyUrl = () => {
+
+
+
+
+  return `/api/archive-copy`
+}
+
+/**
+ * @summary Save the independent archive copy
+ */
+export const saveArchiveCopy = async (saveArchiveRequest: SaveArchiveRequest, options?: Parameters<typeof customFetch>[1]): Promise<Archive> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Archive>(getSaveArchiveCopyUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveArchiveRequest)
+  }
+);}
+
+
+
+
+
+export const getSaveArchiveCopyMutationKey = () => ['saveArchiveCopy'] as const;
+
+export const getSaveArchiveCopyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveArchiveCopy>>, TError,SaveArchiveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveArchiveCopy>>, TError,SaveArchiveCopyMutationVariables, TContext> => {
+
+const mutationKey = getSaveArchiveCopyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveArchiveCopy>>, SaveArchiveCopyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveArchiveCopy(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveArchiveCopyMutationResult = NonNullable<Awaited<ReturnType<typeof saveArchiveCopy>>>
+    export type SaveArchiveCopyMutationBody = BodyType<SaveArchiveRequest>
+    export type SaveArchiveCopyMutationError = ErrorType<void>
+    export type SaveArchiveCopyMutationVariables = {data: BodyType<SaveArchiveRequest>}
+
+    /**
+ * @summary Save the independent archive copy
+ */
+export const useSaveArchiveCopy = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveArchiveCopy>>, TError,SaveArchiveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveArchiveCopy>>,
+        TError,
+        SaveArchiveCopyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveArchiveCopyMutationOptions(options));
+    }
+
 export const getUnlockEditorUrl = () => {
 
 
@@ -386,6 +552,94 @@ export const useUnlockEditor = <TError = ErrorType<void>,
       return useMutation(getUnlockEditorMutationOptions(options));
     }
 
+export const getUnlockArchiveCopyEditorUrl = () => {
+
+
+
+
+  return `/api/editor-copy/unlock`
+}
+
+/**
+ * @summary Unlock editing for the independent archive copy
+ */
+export const unlockArchiveCopyEditor = async (editorUnlockRequest: EditorUnlockRequest, options?: Parameters<typeof customFetch>[1]): Promise<EditorUnlockResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EditorUnlockResponse>(getUnlockArchiveCopyEditorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(editorUnlockRequest)
+  }
+);}
+
+
+
+
+
+export const getUnlockArchiveCopyEditorMutationKey = () => ['unlockArchiveCopyEditor'] as const;
+
+export const getUnlockArchiveCopyEditorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlockArchiveCopyEditor>>, TError,UnlockArchiveCopyEditorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unlockArchiveCopyEditor>>, TError,UnlockArchiveCopyEditorMutationVariables, TContext> => {
+
+const mutationKey = getUnlockArchiveCopyEditorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unlockArchiveCopyEditor>>, UnlockArchiveCopyEditorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  unlockArchiveCopyEditor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnlockArchiveCopyEditorMutationResult = NonNullable<Awaited<ReturnType<typeof unlockArchiveCopyEditor>>>
+    export type UnlockArchiveCopyEditorMutationBody = BodyType<EditorUnlockRequest>
+    export type UnlockArchiveCopyEditorMutationError = ErrorType<void>
+    export type UnlockArchiveCopyEditorMutationVariables = {data: BodyType<EditorUnlockRequest>}
+
+    /**
+ * @summary Unlock editing for the independent archive copy
+ */
+export const useUnlockArchiveCopyEditor = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlockArchiveCopyEditor>>, TError,UnlockArchiveCopyEditorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unlockArchiveCopyEditor>>,
+        TError,
+        UnlockArchiveCopyEditorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnlockArchiveCopyEditorMutationOptions(options));
+    }
+
 export const getGetEditorStatusUrl = () => {
 
 
@@ -451,6 +705,83 @@ export function useGetEditorStatus<TData = Awaited<ReturnType<typeof getEditorSt
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetEditorStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetArchiveCopyEditorStatusUrl = () => {
+
+
+
+
+  return `/api/editor-copy/status`
+}
+
+/**
+ * @summary Check the current editor role for the independent archive copy
+ */
+export const getArchiveCopyEditorStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<EditorStatus> => {
+
+  return customFetch<EditorStatus>(getGetArchiveCopyEditorStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetArchiveCopyEditorStatusQueryKey = () => {
+    return [
+    `/api/editor-copy/status`
+    ] as const;
+    }
+
+
+export const getGetArchiveCopyEditorStatusQueryOptions = <TData = Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetArchiveCopyEditorStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>> = ({ signal }) => getArchiveCopyEditorStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetArchiveCopyEditorStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>>
+export type GetArchiveCopyEditorStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check the current editor role for the independent archive copy
+ */
+
+export function useGetArchiveCopyEditorStatus<TData = Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveCopyEditorStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetArchiveCopyEditorStatusQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

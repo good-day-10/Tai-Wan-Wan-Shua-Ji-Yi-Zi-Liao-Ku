@@ -183,6 +183,172 @@ export const SaveArchiveResponse = zod.object({
 
 
 /**
+ * Initializes the copy from the main archive on first read, then returns its independent data.
+ * @summary Get the independent archive copy
+ */
+
+
+
+export const GetArchiveCopyResponse = zod.object({
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
+  "introduction": zod.string(),
+  "memories": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "location": zod.string(),
+  "era": zod.string(),
+  "category": zod.string(),
+  "storyteller": zod.string(),
+  "excerpt": zod.string(),
+  "story": zod.string(),
+  "storyHtml": zod.string().optional(),
+  "color": zod.string(),
+  "mark": zod.string(),
+  "image": zod.string().optional(),
+  "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+})),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "backgroundImage": zod.string().optional(),
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+}))
+})).optional()
+}).optional()
+})
+
+
+/**
+ * @summary Save the independent archive copy
+ */
+
+
+
+
+export const SaveArchiveCopyBody = zod.object({
+  "archive": zod.object({
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
+  "introduction": zod.string(),
+  "memories": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "location": zod.string(),
+  "era": zod.string(),
+  "category": zod.string(),
+  "storyteller": zod.string(),
+  "excerpt": zod.string(),
+  "story": zod.string(),
+  "storyHtml": zod.string().optional(),
+  "color": zod.string(),
+  "mark": zod.string(),
+  "image": zod.string().optional(),
+  "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+})),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "backgroundImage": zod.string().optional(),
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+}))
+})).optional()
+}).optional()
+}),
+  "expectedVersion": zod.number().int().min(1).optional().describe('Server revision read by the editor before it started editing')
+})
+
+
+
+
+export const SaveArchiveCopyResponse = zod.object({
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
+  "introduction": zod.string(),
+  "memories": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "location": zod.string(),
+  "era": zod.string(),
+  "category": zod.string(),
+  "storyteller": zod.string(),
+  "excerpt": zod.string(),
+  "story": zod.string(),
+  "storyHtml": zod.string().optional(),
+  "color": zod.string(),
+  "mark": zod.string(),
+  "image": zod.string().optional(),
+  "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+})),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "backgroundImage": zod.string().optional(),
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+}))
+})).optional()
+}).optional()
+})
+
+
+/**
  * @summary Unlock archive editing for the signed-in user
  */
 export const UnlockEditorBody = zod.object({
@@ -195,9 +361,30 @@ export const UnlockEditorResponse = zod.object({
 
 
 /**
+ * @summary Unlock editing for the independent archive copy
+ */
+export const UnlockArchiveCopyEditorBody = zod.object({
+  "editorPassword": zod.string()
+})
+
+export const UnlockArchiveCopyEditorResponse = zod.object({
+  "unlocked": zod.boolean()
+})
+
+
+/**
  * @summary Check the current editor access role
  */
 export const GetEditorStatusResponse = zod.object({
+  "authenticated": zod.boolean(),
+  "owner": zod.boolean()
+})
+
+
+/**
+ * @summary Check the current editor role for the independent archive copy
+ */
+export const GetArchiveCopyEditorStatusResponse = zod.object({
   "authenticated": zod.boolean(),
   "owner": zod.boolean()
 })

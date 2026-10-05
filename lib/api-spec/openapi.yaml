@@ -63,6 +63,44 @@ paths:
           description: Authentication or editor access required
         "409":
           description: Archive was changed by another editor
+  /archive-copy:
+    get:
+      operationId: getArchiveCopy
+      tags: [archive]
+      summary: Get the independent archive copy
+      description: Initializes the copy from the main archive on first read, then returns its independent data.
+      responses:
+        "200":
+          description: Independent archive copy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archive"
+        "404":
+          description: Source archive has not been saved yet
+    put:
+      operationId: saveArchiveCopy
+      tags: [archive]
+      summary: Save the independent archive copy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveArchiveRequest"
+      responses:
+        "200":
+          description: Saved independent archive copy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archive"
+        "400":
+          description: Invalid archive data
+        "401":
+          description: Authentication or editor access required
+        "409":
+          description: Archive copy was changed by another editor
   /editor/unlock:
     post:
       operationId: unlockEditor
@@ -87,11 +125,47 @@ paths:
           description: Authentication or editor credentials required
         "503":
           description: Editor access is not configured
+  /editor-copy/unlock:
+    post:
+      operationId: unlockArchiveCopyEditor
+      tags: [archive]
+      summary: Unlock editing for the independent archive copy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorUnlockRequest"
+      responses:
+        "200":
+          description: Editor access granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorUnlockResponse"
+        "400":
+          description: Invalid editor credentials
+        "401":
+          description: Authentication or editor credentials required
+        "503":
+          description: Editor access is not configured
   /editor/status:
     get:
       operationId: getEditorStatus
       tags: [archive]
       summary: Check the current editor access role
+      responses:
+        "200":
+          description: Current authentication and owner status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorStatus"
+  /editor-copy/status:
+    get:
+      operationId: getArchiveCopyEditorStatus
+      tags: [archive]
+      summary: Check the current editor role for the independent archive copy
       responses:
         "200":
           description: Current authentication and owner status
