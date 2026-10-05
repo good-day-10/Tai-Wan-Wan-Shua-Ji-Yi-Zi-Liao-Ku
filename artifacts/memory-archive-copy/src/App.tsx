@@ -65,8 +65,8 @@ function isCreatedArchiveConflictError(error: unknown): boolean {
 }
 
 const defaultSiteBlocks: SiteTextBlock[] = [
-  { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TAIWAN PLAY MEMORIES', x: 0, y: 0, width: 100, align: 'left' },
-  { id: 'header.title', label: '頁首網站名稱', section: '頁首', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TEEN GUIDE SQUAD', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'header.title', label: '頁首網站名稱', section: '頁首', html: '少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'nav.memories', label: '導覽：記憶索引', section: '頁首', html: '記憶索引', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'nav.about', label: '導覽：關於資料庫', section: '頁首', html: '關於資料庫', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'hero.eyebrow', label: '主視覺眉題', section: '主視覺', html: '一座正在長大的集體記憶', x: 0, y: 0, width: 100, align: 'left' },
@@ -105,14 +105,14 @@ const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'about.cardTitle', label: '關於卡片標題', section: '關於資料庫', html: '每個人<br />都是收藏家。', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'about.year', label: '關於年代數字', section: '關於資料庫', html: '1960 →', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'about.yearBody', label: '關於年代說明', section: '關於資料庫', html: '跨越不同年代，持續收錄中', x: 0, y: 0, width: 100, align: 'left' },
-  { id: 'footer.brand', label: '頁尾網站名稱', section: '頁尾', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.brand', label: '頁尾網站名稱', section: '頁尾', html: '少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.body', label: '頁尾說明', section: '頁尾', html: '讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.explore', label: '頁尾導覽標題', section: '頁尾', html: 'EXPLORE', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.contribute', label: '頁尾投稿標題', section: '頁尾', html: 'CONTRIBUTE', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.contributeBody', label: '頁尾投稿說明', section: '頁尾', html: '你也有一段想保存的童年嗎？', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.contributeCta', label: '頁尾編輯連結', section: '頁尾', html: '進入編輯入口　→', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.copyright', label: '頁尾版權文字', section: '頁尾', html: '一個開放給所有人的家庭記憶計畫', x: 0, y: 0, width: 100, align: 'left' },
-  { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 少年導覽隊', x: 0, y: 0, width: 100, align: 'right' },
 ];
 
 function createDefaultSiteContent(): SiteContent {
@@ -260,7 +260,7 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
           <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]">
             <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-10 w-10 rounded-full object-cover" />
           </span>
-          <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TAIWAN PLAY MEMORIES" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></span>
+          <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TEEN GUIDE SQUAD" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="少年導覽隊" className="serif text-lg font-bold" /></span>
         </a>
         <div className="flex items-center gap-2">
           <AuthControls />
@@ -927,7 +927,7 @@ function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive
 }
 
 function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: () => void }) {
-  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-9 w-9 rounded-full object-cover" /><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href={`${import.meta.env.BASE_URL}#memories`} data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href={`${import.meta.env.BASE_URL}#about`} data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
+  return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-9 w-9 rounded-full object-cover" /><SiteText siteContent={siteContent} id="footer.brand" fallback="少年導覽隊" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href={`${import.meta.env.BASE_URL}#memories`} data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href={`${import.meta.env.BASE_URL}#about`} data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 少年導覽隊" /></div></div></footer>;
 }
 
 function Home() {
@@ -1027,7 +1027,7 @@ function Router() {
 function App() {
   const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  return <ClerkProvider publishableKey={publishableKey} proxyUrl={import.meta.env.PROD ? `${base}/api/__clerk` : undefined}><QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={base}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider></ClerkProvider>;
+  return <ClerkProvider publishableKey={publishableKey} proxyUrl={import.meta.env.PROD ? `${base}/api/__clerk` : undefined} localization={{ signIn: { start: { title: '登入少年導覽隊', subtitle: '歡迎回來，請登入以繼續。' } }, signUp: { start: { title: '加入少年導覽隊', subtitle: '建立帳號，開始使用少年導覽隊。' } } }}><QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={base}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider></ClerkProvider>;
 }
 
 export default App;

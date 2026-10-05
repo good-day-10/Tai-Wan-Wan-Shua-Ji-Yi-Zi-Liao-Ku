@@ -7,7 +7,7 @@ test('legacy archive data without siteContent receives every default page block'
 
   assert.deepEqual(normalized, createDefaultSiteContent());
   assert.equal(normalized.blocks.length, defaultSiteBlocks.length);
-  assert.equal(normalized.blocks.find((block) => block.id === 'header.title')?.html, '台灣玩耍記憶資料庫');
+  assert.equal(normalized.blocks.find((block) => block.id === 'header.title')?.html, '少年導覽隊');
   assert.equal(normalized.blocks.find((block) => block.id === 'card.readMore')?.html, '閱讀故事');
   assert.equal(normalized.blocks.find((block) => block.id === 'memory.detailLabel')?.html, '故事詳頁');
 });
@@ -45,5 +45,5 @@ test('saved page text and layout values survive normalization for a new visitor'
   });
   assert.equal(normalized.blocks.find((block) => block.id === 'category.童玩')?.html, '新版分類');
   assert.equal(normalized.blocks.find((block) => block.id === 'memory.detailLabel')?.align, 'right');
-  assert.equal(normalized.blocks.find((block) => block.id === 'header.title')?.html, '台灣玩耍記憶資料庫');
+  assert.equal(normalized.blocks.find((block) => block.id === 'header.title')?.html, '少年導覽隊');
 });

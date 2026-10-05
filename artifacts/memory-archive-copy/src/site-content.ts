@@ -14,8 +14,8 @@ export type SiteContent = { blocks: SiteTextBlock[] };
 export type SiteTextBlockInput = Omit<SiteTextBlock, 'align'> & { align: string };
 
 export const defaultSiteBlocks: SiteTextBlock[] = [
-  { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TAIWAN PLAY MEMORIES', x: 0, y: 0, width: 100, align: 'left' },
-  { id: 'header.title', label: '頁首網站名稱', section: '頁首', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'header.eyebrow', label: '頁首英文標誌', section: '頁首', html: 'TEEN GUIDE SQUAD', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'header.title', label: '頁首網站名稱', section: '頁首', html: '少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'nav.memories', label: '導覽：記憶索引', section: '頁首', html: '記憶索引', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'nav.about', label: '導覽：關於資料庫', section: '頁首', html: '關於資料庫', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'hero.eyebrow', label: '主視覺眉題', section: '主視覺', html: '一座正在長大的集體記憶', x: 0, y: 0, width: 100, align: 'left' },
@@ -54,14 +54,14 @@ export const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'about.cardTitle', label: '關於卡片標題', section: '關於資料庫', html: '每個人<br />都是收藏家。', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'about.year', label: '關於年代數字', section: '關於資料庫', html: '1960 →', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'about.yearBody', label: '關於年代說明', section: '關於資料庫', html: '跨越不同年代，持續收錄中', x: 0, y: 0, width: 100, align: 'left' },
-  { id: 'footer.brand', label: '頁尾網站名稱', section: '頁尾', html: '台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'footer.brand', label: '頁尾網站名稱', section: '頁尾', html: '少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.body', label: '頁尾說明', section: '頁尾', html: '讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.explore', label: '頁尾導覽標題', section: '頁尾', html: 'EXPLORE', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.contribute', label: '頁尾投稿標題', section: '頁尾', html: 'CONTRIBUTE', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.contributeBody', label: '頁尾投稿說明', section: '頁尾', html: '你也有一段想保存的童年嗎？', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.contributeCta', label: '頁尾編輯連結', section: '頁尾', html: '進入編輯入口　→', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.copyright', label: '頁尾版權文字', section: '頁尾', html: '一個開放給所有人的家庭記憶計畫', x: 0, y: 0, width: 100, align: 'left' },
-  { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 台灣玩耍記憶資料庫', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 少年導覽隊', x: 0, y: 0, width: 100, align: 'right' },
 ];
 
 export function createDefaultSiteContent(): SiteContent {
