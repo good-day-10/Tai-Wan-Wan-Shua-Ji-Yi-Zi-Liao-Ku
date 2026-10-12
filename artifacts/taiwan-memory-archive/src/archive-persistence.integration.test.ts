@@ -299,6 +299,65 @@ test('an old editor cookie cannot save after sign-out or a Clerk session change'
   }
 });
 
+test('a revoked Clerk session cannot replay its token and editor cookie to save', {
+  skip: !shouldRun || !canCreateAdditionalTestSession || !clerkSecretKey,
+}, async () => {
+  assert.ok(testUserId);
+  assert.ok(clerkSecretKey);
+
+  const clerk = createClerkClient({ secretKey: clerkSecretKey });
+  const session = await clerk.sessions.createSession({ userId: testUserId });
+  let sessionRevoked = false;
+
+  try {
+    const token = await clerk.sessions.getToken(session.id);
+    assert.ok(token.jwt, 'Clerk did not return a test session token');
+    const authorization = `Bearer ${token.jwt}`;
+    const sessionCookie = `__session=${token.jwt}`;
+    const unlock = await requestJson(
+      '/editor/unlock',
+      {
+        method: 'POST',
+        body: JSON.stringify({ editorPassword }),
+      },
+      sessionCookie,
+      authorization,
+    );
+    assert.equal(unlock.response.ok, true, JSON.stringify(unlock.body));
+
+    const accessCookie = getSetCookieHeaders(unlock.response)
+      .map((value) => value.split(';', 1)[0])
+      .find(Boolean);
+    assert.ok(accessCookie, 'Editor unlock should issue an access cookie');
+
+    const original = await requestArchive({ cache: 'no-store' }, undefined);
+    const forbiddenIntroduction = `revoked-session-save-${Date.now()}`;
+    await clerk.sessions.revokeSession(session.id);
+    sessionRevoked = true;
+
+    const replayedSave = await requestJson(
+      '/archive',
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          archive: { ...original, introduction: forbiddenIntroduction },
+          expectedVersion: original.version,
+        }),
+      },
+      accessCookie,
+      authorization,
+    );
+    assert.equal(replayedSave.response.status, 401);
+    assert.deepEqual(replayedSave.body, { error: 'Authentication required' });
+
+    const visitorRead = await requestArchive({ cache: 'no-store' }, undefined);
+    assert.deepEqual(visitorRead, original);
+    assert.notEqual(visitorRead.introduction, forbiddenIntroduction);
+  } finally {
+    if (!sessionRevoked) await clerk.sessions.revokeSession(session.id);
+  }
+});
+
 test('saved page content is returned to separate visitor reads', { skip: !shouldRun }, async () => {
   const original = await requestArchive();
   const originalSiteContent = (original.siteContent ?? {}) as { blocks?: unknown[]; pages?: unknown[] };

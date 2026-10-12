@@ -23,12 +23,24 @@ function isClerkTestInstance(): boolean {
     && process.env.CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_") === true;
 }
 
-function requireSignedIn(req: Request, res: Response, next: NextFunction): void {
-  const { userId } = getAuth(req);
-  if (!userId) {
+async function requireActiveClerkSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const { userId, sessionId } = getAuth(req);
+  if (!userId || !sessionId) {
     res.status(401).json({ error: "Authentication required" });
     return;
   }
+
+  try {
+    const session = await clerkClient.sessions.getSession(sessionId);
+    if (session.userId !== userId || session.status !== "active") {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
+  } catch {
+    res.status(503).json({ error: "Unable to verify authentication" });
+    return;
+  }
+
   next();
 }
 
@@ -166,7 +178,7 @@ router.get("/editor-copy/status", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/editor/unlock", requireSignedIn, async (req, res): Promise<void> => {
+router.post("/editor/unlock", requireActiveClerkSession, async (req, res): Promise<void> => {
   const owner = await isOwner(req);
   if (!owner) {
     const parsed = UnlockEditorBody.safeParse(req.body);
@@ -200,7 +212,7 @@ router.post("/editor/unlock", requireSignedIn, async (req, res): Promise<void> =
   res.json({ unlocked: true });
 });
 
-router.post("/editor-copy/unlock", requireSignedIn, async (req, res): Promise<void> => {
+router.post("/editor-copy/unlock", requireActiveClerkSession, async (req, res): Promise<void> => {
   const owner = await isOwner(req);
   if (!owner) {
     const parsed = UnlockEditorBody.safeParse(req.body);
@@ -234,7 +246,7 @@ router.post("/editor-copy/unlock", requireSignedIn, async (req, res): Promise<vo
   res.json({ unlocked: true });
 });
 
-router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
+router.put("/archive", requireActiveClerkSession, async (req, res): Promise<void> => {
   if (!hasEditorAccess(req)) {
     res.status(401).json({ error: "Editor access required" });
     return;
@@ -309,7 +321,7 @@ router.put("/archive", requireSignedIn, async (req, res): Promise<void> => {
   }));
 });
 
-router.put("/archive-copy", requireSignedIn, async (req, res): Promise<void> => {
+router.put("/archive-copy", requireActiveClerkSession, async (req, res): Promise<void> => {
   if (!hasCopyEditorAccess(req)) {
     res.status(401).json({ error: "Editor access required" });
     return;
