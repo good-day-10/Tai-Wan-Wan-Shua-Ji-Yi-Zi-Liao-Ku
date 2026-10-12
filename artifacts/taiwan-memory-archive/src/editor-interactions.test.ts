@@ -1,13 +1,27 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { getDraggedPosition } from './editor-interactions';
+import { getDraggedPosition, hasArchiveDraftChanges, hasEditorSessionChanged } from './editor-interactions';
 
 test('touch pointer movement keeps the original layout offset while dragging', () => {
   const drag = { startX: 120, startY: 240, x: 18, y: -9 };
 
   assert.deepEqual(getDraggedPosition(drag, 164, 205), { x: 62, y: -44 });
   assert.deepEqual(getDraggedPosition(drag, 101, 271), { x: -1, y: 22 });
+});
+
+test('Clerk sign-out and session replacement both invalidate the editor session', () => {
+  assert.equal(hasEditorSessionChanged('session-a', 'session-a', true), false);
+  assert.equal(hasEditorSessionChanged('session-a', 'session-b', true), true);
+  assert.equal(hasEditorSessionChanged('session-a', null, true), true);
+  assert.equal(hasEditorSessionChanged('session-a', null, false), true);
+});
+
+test('draft comparison identifies changed archive content without treating an unchanged copy as unsaved', () => {
+  const archive = { introduction: '原始介紹', memories: [{ id: '01', title: '原標題' }] };
+
+  assert.equal(hasArchiveDraftChanges(archive, structuredClone(archive)), false);
+  assert.equal(hasArchiveDraftChanges(archive, { ...archive, introduction: '尚未保存的介紹' }), true);
 });
 
 test('editor wiring keeps touch dragging and keyboard selection paths enabled', async () => {
@@ -24,6 +38,25 @@ test('editor wiring keeps touch dragging and keyboard selection paths enabled', 
   assert.match(cssSource, /\.layout-drag-handle\s*\{[^}]*touch-action:\s*none/);
   assert.match(cssSource, /\.editor-scroll-container\s*\{[^}]*scroll-padding-bottom:/);
   assert.match(cssSource, /\.rich-editor\s*\{[^}]*scroll-margin-block:/);
+});
+
+test('session changes leave editing mode while keeping a recoverable draft and reauthorization path', async () => {
+  const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
+  const sessionChangeEffect = appSource.match(/if \(!editing \|\| !authLoaded\) return;([\s\S]*?)\n  \}, \[authLoaded, editing, isSignedIn, sessionId\]\);/);
+
+  assert.ok(sessionChangeEffect, 'Home should observe Clerk session changes while editing');
+  assert.match(appSource, /const \{ isLoaded: authLoaded, isSignedIn, sessionId \} = useAuth\(\)/);
+  assert.match(sessionChangeEffect[1], /hasEditorSessionChanged\(editorSessionIdRef\.current, sessionId \?\? null, Boolean\(isSignedIn\)\)/);
+  assert.match(sessionChangeEffect[1], /setEditing\(false\)/);
+  assert.match(sessionChangeEffect[1], /setNeedsAuthorization\(true\)/);
+  assert.match(sessionChangeEffect[1], /storeSessionChangeNotice\(true\)/);
+  assert.match(appSource, /sessionStorage\.setItem\(recoveryDraftStorageKey, JSON\.stringify\(draft\)\)/);
+  assert.match(appSource, /useState\(readSessionChangeNotice\)/);
+  assert.match(appSource, /sessionStorage\.setItem\(sessionChangeNoticeStorageKey, 'true'\)/);
+  assert.match(appSource, /initialDraft=\{recoveryDraft\} onDraftChange=\{persistRecoveryDraft\}/);
+  assert.match(appSource, /data-testid="session-change-notice"/);
+  assert.match(appSource, /data-testid="button-reauthorize-draft"/);
+  assert.match(appSource, /data-testid="button-copy-recovery-draft"/);
 });
 
 test('editor gate only exposes the password field after Clerk confirms sign-in', async () => {

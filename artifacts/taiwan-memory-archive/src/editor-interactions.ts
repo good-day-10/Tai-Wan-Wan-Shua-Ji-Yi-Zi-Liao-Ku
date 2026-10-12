@@ -5,6 +5,18 @@ export type DragSnapshot = {
   y: number;
 };
 
+export function hasEditorSessionChanged(
+  originalSessionId: string | null,
+  currentSessionId: string | null,
+  isSignedIn: boolean,
+): boolean {
+  return !isSignedIn || !currentSessionId || originalSessionId !== currentSessionId;
+}
+
+export function hasArchiveDraftChanges(archive: unknown, draft: unknown): boolean {
+  return JSON.stringify(draft) !== JSON.stringify(archive);
+}
+
 export function getDraggedPosition(
   drag: DragSnapshot,
   clientX: number,

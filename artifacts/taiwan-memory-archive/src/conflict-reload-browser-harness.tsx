@@ -26,6 +26,7 @@ function ConflictReloadBrowserHarness() {
     </button>}
     {editing ? <Editor
       archive={archive}
+      onDraftChange={() => undefined}
       onSave={async (nextArchive) => {
         const response = await fetch('/mock/archive', {
           method: 'PUT',

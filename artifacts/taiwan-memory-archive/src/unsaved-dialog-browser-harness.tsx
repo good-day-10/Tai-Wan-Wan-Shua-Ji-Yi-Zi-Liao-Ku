@@ -24,6 +24,7 @@ function UnsavedDialogBrowserHarness() {
       <p data-testid="test-saved-title">{archive.memories[0]?.title}</p>
     </div> : <Editor
       archive={archive}
+      onDraftChange={() => undefined}
       onSave={async (nextArchive) => {
         setArchive(nextArchive);
         closeEditor('saved');

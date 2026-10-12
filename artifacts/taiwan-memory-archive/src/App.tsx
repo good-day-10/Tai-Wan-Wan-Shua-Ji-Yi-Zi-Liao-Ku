@@ -4,6 +4,7 @@ import { getArchive as getSharedArchive, getEditorStatus, saveArchive as saveSha
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { hasArchiveDraftChanges, hasEditorSessionChanged } from './editor-interactions';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -145,6 +146,50 @@ function normalizeSiteContent(input?: SiteContentInput): SiteContent {
 
 function normalizeArchive(value: { version?: number; memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
   return { version: value.version, introduction: value.introduction, memories: value.memories, siteContent: normalizeSiteContent(value.siteContent) };
+}
+
+const recoveryDraftStorageKey = 'taiwan-memory-archive-recovery-draft';
+const sessionChangeNoticeStorageKey = 'taiwan-memory-archive-session-change-notice';
+
+function readRecoveryDraft(): ArchiveData | null {
+  try {
+    const stored = sessionStorage.getItem(recoveryDraftStorageKey);
+    if (!stored) return null;
+    const value = JSON.parse(stored) as Partial<ArchiveData>;
+    if (typeof value.introduction !== 'string' || !Array.isArray(value.memories)) {
+      sessionStorage.removeItem(recoveryDraftStorageKey);
+      return null;
+    }
+    return normalizeArchive(value as ArchiveData);
+  } catch {
+    return null;
+  }
+}
+
+function storeRecoveryDraft(draft: ArchiveData | null): void {
+  try {
+    if (draft) sessionStorage.setItem(recoveryDraftStorageKey, JSON.stringify(draft));
+    else sessionStorage.removeItem(recoveryDraftStorageKey);
+  } catch {
+    // The in-memory recovery draft remains available if this tab's storage is unavailable.
+  }
+}
+
+function readSessionChangeNotice(): boolean {
+  try {
+    return sessionStorage.getItem(sessionChangeNoticeStorageKey) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function storeSessionChangeNotice(required: boolean): void {
+  try {
+    if (required) sessionStorage.setItem(sessionChangeNoticeStorageKey, 'true');
+    else sessionStorage.removeItem(sessionChangeNoticeStorageKey);
+  } catch {
+    // The in-memory notice remains available if this tab's storage is unavailable.
+  }
 }
 
 const seedData: ArchiveData = {
@@ -901,8 +946,15 @@ function ConflictResolutionDialog({ conflicts, choices, saving, onChoice, onCanc
   </div>;
 }
 
-export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<ArchiveData> }) {
-  const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
+export function Editor({ archive, initialDraft, onDraftChange, onSave, onCancel, onLock, onReloadLatest }: { archive: ArchiveData; initialDraft?: ArchiveData | null; onDraftChange: (draft: ArchiveData) => void; onSave: (data: ArchiveData) => Promise<void>; onCancel: () => void; onLock: () => void; onReloadLatest: () => Promise<ArchiveData> }) {
+  const [draft, setDraftState] = useState<ArchiveData>(() => structuredClone(initialDraft ?? archive));
+  const draftRef = useRef(draft);
+  const updateDraft = (nextDraft: ArchiveData | ((current: ArchiveData) => ArchiveData)) => {
+    const next = typeof nextDraft === 'function' ? nextDraft(draftRef.current) : nextDraft;
+    draftRef.current = next;
+    setDraftState(next);
+    onDraftChange(next);
+  };
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [editorTab, setEditorTab] = useState<'memories' | 'page' | 'pages'>('memories');
@@ -916,7 +968,7 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
   const [conflictChoices, setConflictChoices] = useState<Record<string, ArchiveConflictChoice>>({});
   const [pendingCloseAction, setPendingCloseAction] = useState<'cancel' | 'lock' | null>(null);
   const closeTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const hasUnsavedChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(archive), [archive, draft]);
+  const hasUnsavedChanges = useMemo(() => hasArchiveDraftChanges(draft, archive), [archive, draft]);
   const selected = draft.memories.find((memory) => memory.id === selectedId);
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -985,7 +1037,7 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
   const confirmConflictChoices = async () => {
     if (!conflictArchive) return;
     const mergedArchive = mergeArchiveConflictChoices(conflictArchive, conflictDiffs, conflictChoices);
-    setDraft(mergedArchive);
+    updateDraft(mergedArchive);
     setConflictArchive(null);
     setConflictDiffs([]);
     setConflictChoices({});
@@ -993,22 +1045,22 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
   };
   const updateSelected = (field: keyof Memory, value: string) => {
     if (!selectedId) return;
-    setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, [field]: value } : memory) }));
+    updateDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, [field]: value } : memory) }));
   };
   const updateSelectedImages = (values: string[]) => {
     if (!selectedId) return;
-    setDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, images: values, image: undefined } : memory) }));
+    updateDraft((current) => ({ ...current, memories: current.memories.map((memory) => memory.id === selectedId ? { ...memory, images: values, image: undefined } : memory) }));
   };
   const removeSelected = () => {
     if (!selectedId || !window.confirm('確定要刪除這則記憶嗎？刪除後請按「保存變更」才會生效。')) return;
-    setDraft((current) => ({ ...current, memories: current.memories.filter((memory) => memory.id !== selectedId) }));
+    updateDraft((current) => ({ ...current, memories: current.memories.filter((memory) => memory.id !== selectedId) }));
     setSelectedId(null);
   };
   const addNew = () => {
     const nextId = String(Math.max(0, ...draft.memories.map((memory) => Number(memory.id))) + 1).padStart(2, '0');
     const story = '請在這裡寫下完整的故事。可以記錄遊戲怎麼開始、誰和你一起玩，以及那時候的天氣和聲音。';
     const memory: Memory = { id: nextId, title: '一段還沒命名的記憶', location: '台灣・', era: '年代待補', category: '童玩', storyteller: '說故事的人', excerpt: '在這裡寫下一句讓人想繼續聽的話。', story, storyHtml: storyToHtml(story), color: '#3e8090', mark: '新藏', images: [] };
-    setDraft((current) => ({ ...current, memories: [...current.memories, memory] }));
+    updateDraft((current) => ({ ...current, memories: [...current.memories, memory] }));
     setSelectedId(nextId);
     setShowNew(false);
   };
@@ -1023,11 +1075,11 @@ export function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { 
           {saveError && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert"><p>{saveError}</p>{saveConflict && <button type="button" disabled={saving || reloadingLatest} onClick={compareLatest} className="btn-outline mt-3 min-h-10 px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '載入最新版本中…' : '比較版本並選擇'}</button>}</div>}
       </div>
       <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
-      {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
+      {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => updateDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => updateDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
         <aside>
           <div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]">
             <p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2>
-            <textarea value={draft.introduction} onChange={(event) => setDraft({ ...draft, introduction: event.target.value })} className="mt-5 min-h-[190px] w-full resize-y rounded-xl border border-white/20 bg-white/10 p-4 text-sm leading-relaxed text-white outline-none placeholder:text-white/45 focus:border-[hsl(var(--accent))]" aria-label="編輯資料庫介紹" data-testid="textarea-introduction" />
+            <textarea value={draft.introduction} onChange={(event) => updateDraft({ ...draft, introduction: event.target.value })} className="mt-5 min-h-[190px] w-full resize-y rounded-xl border border-white/20 bg-white/10 p-4 text-sm leading-relaxed text-white outline-none placeholder:text-white/45 focus:border-[hsl(var(--accent))]" aria-label="編輯資料庫介紹" data-testid="textarea-introduction" />
             <p className="mt-3 text-xs text-white/55">這段文字會出現在首頁的第一個畫面。</p>
           </div>
           <div className="mt-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
@@ -1060,14 +1112,30 @@ function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: (ev
 
 function Home() {
   const [location] = useLocation();
+  const { isLoaded: authLoaded, isSignedIn, sessionId } = useAuth();
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
+  const [recoveryDraft, setRecoveryDraft] = useState<ArchiveData | null>(readRecoveryDraft);
+  const [needsAuthorization, setNeedsAuthorization] = useState(readSessionChangeNotice);
+  const [draftCopyStatus, setDraftCopyStatus] = useState('');
   const [sharedStatus, setSharedStatus] = useState<SharedArchiveStatus>('loading');
   const [loadAttempt, setLoadAttempt] = useState(0);
   const sharedStatusRef = useRef<SharedArchiveStatus>('loading');
   const [detail, setDetail] = useState<Memory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const editorSessionIdRef = useRef<string | null>(null);
   const editorEntryTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const beginEditing = () => {
+    editorSessionIdRef.current = sessionId ?? null;
+    setNeedsAuthorization(false);
+    storeSessionChangeNotice(false);
+    setGateOpen(false);
+    setEditing(true);
+  };
+  const persistRecoveryDraft = (draft: ArchiveData) => {
+    setRecoveryDraft(draft);
+    storeRecoveryDraft(draft);
+  };
   const openEditorGate = (event: React.MouseEvent<HTMLButtonElement>) => {
     editorEntryTriggerRef.current = event.currentTarget;
     setGateOpen(true);
@@ -1084,8 +1152,23 @@ function Home() {
   };
   const closeEditor = () => {
     setEditing(false);
+    editorSessionIdRef.current = null;
+    setRecoveryDraft(null);
+    storeRecoveryDraft(null);
+    setNeedsAuthorization(false);
+    storeSessionChangeNotice(false);
     restoreEditorEntryFocus();
   };
+  useEffect(() => {
+    if (!editing || !authLoaded) return;
+    if (!hasEditorSessionChanged(editorSessionIdRef.current, sessionId ?? null, Boolean(isSignedIn))) return;
+    setEditing(false);
+    setGateOpen(false);
+    setNeedsAuthorization(true);
+    storeSessionChangeNotice(true);
+    editorSessionIdRef.current = null;
+    restoreEditorEntryFocus();
+  }, [authLoaded, editing, isSignedIn, sessionId]);
   const updateSharedStatus = (status: SharedArchiveStatus) => {
     sharedStatusRef.current = status;
     setSharedStatus(status);
@@ -1152,12 +1235,40 @@ function Home() {
       throw new Error('Shared archive save failed');
     }
   };
+  const hasRecoverableDraft = Boolean(recoveryDraft && hasArchiveDraftChanges(archive, recoveryDraft));
+  const showSessionNotice = needsAuthorization || hasRecoverableDraft;
+  const copyRecoveryDraft = async () => {
+    if (!recoveryDraft) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(recoveryDraft, null, 2));
+      setDraftCopyStatus('草稿 JSON 已複製。');
+    } catch {
+      setDraftCopyStatus('無法使用剪貼簿。請重新授權後恢復草稿，再從編輯器複製內容。');
+    }
+  };
+  const dismissRecoveryDraft = () => {
+    setRecoveryDraft(null);
+    storeRecoveryDraft(null);
+    setNeedsAuthorization(false);
+    storeSessionChangeNotice(false);
+    setDraftCopyStatus('');
+  };
+  const sessionNotice = showSessionNotice && <section className="mx-auto my-5 max-w-7xl rounded-2xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.06)] p-5" role="alert" data-testid="session-change-notice">
+    <h2 className="font-bold text-[hsl(var(--destructive))]">編輯已暫停，請重新登入或解鎖</h2>
+    <p className="mt-2 text-sm leading-relaxed">登入 session 已改變，為避免使用舊權限保存，編輯模式已關閉。{hasRecoverableDraft ? '未保存草稿保存在此分頁；重新授權後會載入草稿，也可以先複製一份。' : '重新授權後即可繼續編輯。'}</p>
+    <div className="mt-4 flex flex-wrap gap-2">
+      {!authLoaded ? <span className="self-center text-sm text-[hsl(var(--muted-foreground))]">正在確認登入狀態…</span> : isSignedIn ? <button type="button" onClick={() => setGateOpen(true)} className="btn-primary min-h-11 px-4" data-testid="button-reauthorize-draft">重新解鎖並恢復草稿</button> : <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/sign-in`} className="btn-primary min-h-11 px-4" data-testid="link-reauthorize-draft">重新登入</a>}
+      {hasRecoverableDraft && <button type="button" onClick={() => void copyRecoveryDraft()} className="btn-outline min-h-11 px-4" data-testid="button-copy-recovery-draft">複製草稿 JSON</button>}
+      {hasRecoverableDraft && <button type="button" onClick={dismissRecoveryDraft} className="btn-ghost min-h-11 px-4" data-testid="button-discard-recovery-draft">捨棄草稿</button>}
+    </div>
+    {draftCopyStatus && <p className="mt-3 text-sm" role="status" data-testid="recovery-draft-copy-status">{draftCopyStatus}</p>}
+  </section>;
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
+  if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
 }
 
 function Router() {
