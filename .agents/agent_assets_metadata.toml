@@ -28,3 +28,31 @@ mtime_ms = 1791803238264
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:cb2d074f-9994-4604-ad36-ca3fca690a71/1c1f2418-e6d3-4131-ae3b-7e1891dd15a7/ef1a30eb-01c1-4582-a82e-2ad123e550c1"
 storage_version_token = "1791803270313409"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "ZFhn3u3Y-49vP1exIY5MJ"
+uri = "file://generated-artifacts/wonder-scouts-independent-db-bootstrap.zip"
+type = "unspecified"
+title = "少年導覽隊獨立資料庫初始化包"
+description = "包含修正後的搬遷指南與副站初始資料 JSON；使用新 Replit 專案自己的資料庫，不共用舊專案資料庫。"
+logical_id = "939a40cb-65a6-44d5-8e06-af8a30972ccb"
+content_hash = "sha256:924917f8c2fc05be714627863c098b771308f8241162d23a0b6c09920958f696"
+size = 6176
+mtime_ms = 1791804747479
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:cb2d074f-9994-4604-ad36-ca3fca690a71/939a40cb-65a6-44d5-8e06-af8a30972ccb/2606d7fd-e654-4fe3-af11-0a1415400f6d"
+storage_version_token = "1791804767923936"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "WmsSKraGQMs0ibctym9wM"
+uri = "file://generated-artifacts/wonder-scouts-archive-copy-seed.json"
+type = "unspecified"
+title = "副站初始資料 JSON"
+description = "獨立資料庫初始化用的副站內容，含 9 筆成果記錄與預設網站文字區塊。"
+logical_id = "d92a4ed6-7537-4120-8b01-56b6f02fe776"
+content_hash = "sha256:5501f33a616029d95c2d341e89417a4d278dff2d01917cbceb49337cfa16fbe0"
+size = 21983
+mtime_ms = 1791804725335
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:cb2d074f-9994-4604-ad36-ca3fca690a71/d92a4ed6-7537-4120-8b01-56b6f02fe776/cb705bd2-0d50-4b58-b226-29d7510da2b4"
+storage_version_token = "1791804768409109"
+content_type = "application/octet-stream"

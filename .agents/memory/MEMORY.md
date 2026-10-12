@@ -6,3 +6,4 @@
 - [Clerk integration test sessions](clerk-test-sessions.md) — backend-created sessions authenticate reliably via Authorization in development instances; raw cookies may need browser state.
 - [Clerk integration test preflight](clerk-integration-test-preflight.md) — validate both test-runner credentials and the target API's Clerk instance before creating fixtures or making writes.
 - [Playwright on Nix](playwright-nix.md) — Chromium needs Nix shared libraries, and monorepo package installs must target the app rather than the guarded workspace root.
+- [Standalone archive copy](standalone-archive-copy.md) — the new standalone site uses its own Replit database, seeded once from copy-site defaults; it does not sync back to the original project.
