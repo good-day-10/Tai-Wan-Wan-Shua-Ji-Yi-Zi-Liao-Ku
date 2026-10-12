@@ -14,3 +14,17 @@ mtime_ms = 1789996448666
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:cb2d074f-9994-4604-ad36-ca3fca690a71/f83612de-f0b8-4e67-bcda-2d657553c971/c19d8e8d-0241-440b-9aeb-8d99fb90202c"
 storage_version_token = "1789996459571287"
 content_type = "image/png"
+
+[[outputs]]
+id = "Xo8Xt9SknHDVXgvDQJglN"
+uri = "file://generated-artifacts/wonder-scouts-standalone-source.zip"
+type = "unspecified"
+title = "少年導覽隊獨立專案原始碼包"
+description = "包含副站前端、共享 API、必要 workspace 套件與移轉指南；已排除主站、Secrets、node_modules 與建置產物。"
+logical_id = "1c1f2418-e6d3-4131-ae3b-7e1891dd15a7"
+content_hash = "sha256:6b194f8ffc18000035765e4cf56869476bbd06afeb2e1feffd906056aad0883e"
+size = 1291140
+mtime_ms = 1791803238264
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:cb2d074f-9994-4604-ad36-ca3fca690a71/1c1f2418-e6d3-4131-ae3b-7e1891dd15a7/ef1a30eb-01c1-4582-a82e-2ad123e550c1"
+storage_version_token = "1791803270313409"
+content_type = "application/octet-stream"
