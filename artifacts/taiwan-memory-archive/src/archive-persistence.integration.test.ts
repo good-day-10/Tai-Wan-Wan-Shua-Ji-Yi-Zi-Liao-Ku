@@ -18,6 +18,28 @@ let editorAccessCookie: string | undefined;
 let testSessionAuthorization: string | undefined;
 let testSessionId: string | undefined;
 
+async function assertSafeClerkTestEnvironment(
+  secretKey: string | undefined,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
+  if (secretKey && !secretKey.startsWith('sk_test_')) {
+    throw new Error('Archive integration tests are blocked: CLERK_SECRET_KEY must belong to a Clerk test instance.');
+  }
+
+  let response: Response;
+  try {
+    response = await fetcher(`${apiBaseUrl}/archive/integration-test-safety`, {
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    throw new Error('Archive integration tests are blocked: unable to verify that the API server uses a Clerk test instance.');
+  }
+
+  if (!response.ok) {
+    throw new Error('Archive integration tests are blocked: the API server must use Clerk test-instance keys.');
+  }
+}
+
 async function requestJson(
   path: string,
   options?: RequestInit,
@@ -117,8 +139,51 @@ async function unlockForTest(): Promise<void> {
   editorCookie = `${testSessionCookie}; ${accessCookies.join('; ')}`;
 }
 
+test('Clerk integration environment guard rejects production credentials without exposing them', async () => {
+  let apiWasChecked = false;
+  const liveSecretKey = 'sk_live_do_not_print';
+  await assert.rejects(
+    () => assertSafeClerkTestEnvironment(liveSecretKey, async () => {
+      apiWasChecked = true;
+      return new Response(null, { status: 204 });
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /must belong to a Clerk test instance/);
+      assert.equal(error.message.includes(liveSecretKey), false);
+      return true;
+    },
+  );
+  assert.equal(apiWasChecked, false);
+});
+
+test('Clerk integration environment guard rejects an API server that is not configured for test keys', async () => {
+  const unsafeResponseBody = 'sk_live_sensitive_value';
+  await assert.rejects(
+    () => assertSafeClerkTestEnvironment('sk_test_safe_for_tests', async () => (
+      new Response(unsafeResponseBody, { status: 503 })
+    )),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /API server must use Clerk test-instance keys/);
+      assert.equal(error.message.includes(unsafeResponseBody), false);
+      return true;
+    },
+  );
+});
+
+test('Clerk integration environment guard permits a configured test session cookie with test API keys', async () => {
+  let checkedUrl = '';
+  await assert.doesNotReject(() => assertSafeClerkTestEnvironment(undefined, async (input) => {
+    checkedUrl = String(input);
+    return new Response(null, { status: 204 });
+  }));
+  assert.match(checkedUrl, /\/archive\/integration-test-safety$/);
+});
+
 test.before(async () => {
   if (!shouldRun) return;
+  await assertSafeClerkTestEnvironment(clerkSecretKey);
   testSessionCookie = await getOrCreateTestSessionCookie();
   editorCookie = testSessionCookie;
   await unlockForTest();

@@ -18,6 +18,11 @@ const EDITOR_COOKIE = "archive_editor_access";
 const COPY_EDITOR_COOKIE = "archive_copy_editor_access";
 const EDITOR_COOKIE_MAX_AGE = 60 * 60 * 1000;
 
+function isClerkTestInstance(): boolean {
+  return process.env.CLERK_SECRET_KEY?.startsWith("sk_test_") === true
+    && process.env.CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_") === true;
+}
+
 function requireSignedIn(req: Request, res: Response, next: NextFunction): void {
   const { userId } = getAuth(req);
   if (!userId) {
@@ -26,6 +31,15 @@ function requireSignedIn(req: Request, res: Response, next: NextFunction): void 
   }
   next();
 }
+
+router.get("/archive/integration-test-safety", (_req, res): void => {
+  if (!isClerkTestInstance()) {
+    res.status(503).json({ error: "Archive integration tests require a Clerk test instance" });
+    return;
+  }
+
+  res.status(204).end();
+});
 
 function getEditorSessionIdentity(req: Request): string | undefined {
   const { userId, sessionId } = getAuth(req);

@@ -4,4 +4,5 @@
 - [Rich editor selection handling](rich-editor-selection.md) — formatting commands should prefer the live contentEditable selection before restoring a saved Range.
 - [Archive editor authentication](archive-editor-auth.md) — visitor reads stay public; editor writes require Clerk authentication plus a server-validated unlock.
 - [Clerk integration test sessions](clerk-test-sessions.md) — backend-created sessions authenticate reliably via Authorization in development instances; raw cookies may need browser state.
+- [Clerk integration test preflight](clerk-integration-test-preflight.md) — validate both test-runner credentials and the target API's Clerk instance before creating fixtures or making writes.
 - [Playwright on Nix](playwright-nix.md) — Chromium needs Nix shared libraries, and monorepo package installs must target the app rather than the guarded workspace root.
