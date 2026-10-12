@@ -512,6 +512,47 @@ test('a revoked Clerk session cannot replay its token and editor cookie to save'
   }
 });
 
+test('a Clerk session lookup failure blocks unlock and save without affecting public archive reads', {
+  skip: !shouldRun,
+}, async () => {
+  assert.ok(testSessionCookie);
+  assert.ok(editorCookie);
+  const original = await requestArchive({ cache: 'no-store' }, undefined);
+  const failureHeader = { 'x-archive-test-clerk-session-lookup': 'fail' };
+
+  const failedUnlock = await requestJson(
+    '/editor/unlock',
+    {
+      method: 'POST',
+      headers: failureHeader,
+      body: JSON.stringify({ editorPassword }),
+    },
+    testSessionCookie,
+  );
+  assert.equal(failedUnlock.response.status, 503);
+  assert.deepEqual(failedUnlock.body, { error: 'Unable to verify authentication' });
+  assert.equal(getSetCookieHeaders(failedUnlock.response).length, 0);
+
+  const failedSave = await requestJson(
+    '/archive',
+    {
+      method: 'PUT',
+      headers: failureHeader,
+      body: JSON.stringify({
+        archive: { ...original, introduction: `must-not-save-${Date.now()}` },
+        expectedVersion: original.version,
+      }),
+    },
+    editorCookie,
+  );
+  assert.equal(failedSave.response.status, 503);
+  assert.deepEqual(failedSave.body, { error: 'Unable to verify authentication' });
+
+  const publicRead = await requestArchive({ cache: 'no-store' }, undefined);
+  assert.equal(publicRead.version, original.version);
+  assert.deepEqual(publicRead, original);
+});
+
 test('saved page content is returned to separate visitor reads', { skip: !shouldRun }, async () => {
   const original = await requestArchive();
   const originalSiteContent = (original.siteContent ?? {}) as { blocks?: unknown[]; pages?: unknown[] };

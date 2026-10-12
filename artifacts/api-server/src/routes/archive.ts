@@ -19,6 +19,12 @@ const EDITOR_COOKIE = "archive_editor_access";
 const COPY_EDITOR_COOKIE = "archive_copy_editor_access";
 const EDITOR_COOKIE_MAX_AGE = 60 * 60 * 1000;
 
+function shouldSimulateClerkSessionLookupFailure(req: Request): boolean {
+  return process.env.NODE_ENV !== "production"
+    && process.env.CLERK_SECRET_KEY?.startsWith("sk_test_") === true
+    && req.get("x-archive-test-clerk-session-lookup") === "fail";
+}
+
 async function requireActiveClerkSession(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { userId, sessionId } = getAuth(req);
   if (!userId || !sessionId) {
@@ -27,6 +33,9 @@ async function requireActiveClerkSession(req: Request, res: Response, next: Next
   }
 
   try {
+    if (shouldSimulateClerkSessionLookupFailure(req)) {
+      throw new Error("Simulated Clerk session lookup failure");
+    }
     const session = await clerkClient.sessions.getSession(sessionId);
     if (session.userId !== userId || session.status !== "active") {
       res.status(401).json({ error: "Authentication required" });
