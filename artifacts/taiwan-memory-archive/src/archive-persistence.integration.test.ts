@@ -7,6 +7,7 @@ const configuredApiBaseUrl = process.env.ARCHIVE_TEST_BASE_URL?.trim();
 const apiBaseUrl = (configuredApiBaseUrl || 'http://localhost:80/api').replace(/\/$/, '');
 const configuredTestSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE?.trim();
 const clerkSecretKey = process.env.CLERK_SECRET_KEY?.trim();
+const copyArchiveId = 'memory-archive-copy';
 let testUserId = process.env.ARCHIVE_TEST_USER_ID?.trim();
 const testUserEmail = process.env.ARCHIVE_TEST_USER_EMAIL?.trim() || 'archive-integration-test@example.com';
 const integrationRequested = process.env.RUN_ARCHIVE_INTEGRATION === '1';
@@ -22,12 +23,23 @@ let editorCookie = testSessionCookie;
 let editorAccessCookie: string | undefined;
 let testSessionAuthorization: string | undefined;
 let testSessionId: string | undefined;
+let copyEditorCookie: string | undefined;
+let archiveDatabase: typeof import('@workspace/db') | undefined;
+
+type CopyArchiveRow = {
+  introduction: string;
+  memories: string;
+  site_content: string | null;
+  revision: number;
+  updated_at: string;
+};
 
 function getMissingCiSettings(env: NodeJS.ProcessEnv): string[] {
   return [
     'CLERK_SECRET_KEY',
     'ARCHIVE_EDITOR_PASSWORD',
     'ARCHIVE_TEST_BASE_URL',
+    'DATABASE_URL',
   ].filter((key) => !env[key]?.trim());
 }
 
@@ -95,6 +107,108 @@ async function requestArchiveWithStatus(
   return requestJson('/archive', options, cookie);
 }
 
+async function requestArchiveCopy(
+  options?: RequestInit,
+  cookie: string | null | undefined = copyEditorCookie,
+): Promise<Record<string, unknown>> {
+  const { response, body } = await requestJson('/archive-copy', options, cookie);
+  assert.equal(response.ok, true, JSON.stringify(body));
+  return body;
+}
+
+async function requestArchiveCopyWithStatus(
+  options?: RequestInit,
+  cookie: string | null | undefined = copyEditorCookie,
+): Promise<{ response: Response; body: Record<string, unknown> }> {
+  return requestJson('/archive-copy', options, cookie);
+}
+
+async function requestEditorAccessCookie(path: string): Promise<string> {
+  assert.ok(editorPassword, 'ARCHIVE_EDITOR_PASSWORD is required for editor integration tests');
+  assert.ok(testSessionCookie, 'A Clerk test session is required for editor integration tests');
+
+  const { response, body } = await requestJson(
+    path,
+    {
+      method: 'POST',
+      body: JSON.stringify({ editorPassword }),
+    },
+    testSessionCookie,
+  );
+  assert.equal(response.ok, true, JSON.stringify(body));
+  assert.deepEqual(body, { unlocked: true });
+
+  const accessCookies = getSetCookieHeaders(response)
+    .map((value) => value.split(';', 1)[0])
+    .filter(Boolean);
+  assert.ok(accessCookies.length > 0, 'Editor unlock should issue an access cookie');
+  assert.ok(getSetCookieHeaders(response).some((value) => /HttpOnly/i.test(value)));
+  return `${testSessionCookie}; ${accessCookies.join('; ')}`;
+}
+
+function assertLocalIntegrationApi(): void {
+  let hostname: string;
+  try {
+    hostname = new URL(apiBaseUrl).hostname;
+  } catch {
+    throw new Error('Archive copy integration tests require a local development API URL.');
+  }
+  if (!['localhost', '127.0.0.1', '::1'].includes(hostname)) {
+    throw new Error('Archive copy integration tests require a local development API URL.');
+  }
+  if (!process.env.DATABASE_URL?.trim()) {
+    throw new Error('Archive copy integration tests require DATABASE_URL for the development database.');
+  }
+}
+
+async function snapshotAndClearCopyRow(): Promise<CopyArchiveRow | undefined> {
+  assertLocalIntegrationApi();
+  archiveDatabase = await import('@workspace/db');
+  const result = await archiveDatabase.pool.query<CopyArchiveRow>(
+    `SELECT introduction,
+            memories::text AS memories,
+            site_content::text AS site_content,
+            revision,
+            updated_at::text AS updated_at
+       FROM archive
+      WHERE id = $1`,
+    [copyArchiveId],
+  );
+  await archiveDatabase.pool.query('DELETE FROM archive WHERE id = $1', [copyArchiveId]);
+  return result.rows[0];
+}
+
+async function restoreCopyRow(snapshot: CopyArchiveRow | undefined): Promise<void> {
+  assert.ok(archiveDatabase);
+  if (!snapshot) {
+    await archiveDatabase.pool.query('DELETE FROM archive WHERE id = $1', [copyArchiveId]);
+    return;
+  }
+  await archiveDatabase.pool.query(
+    `INSERT INTO archive (id, introduction, memories, site_content, revision, updated_at)
+     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6::timestamptz)
+     ON CONFLICT (id) DO UPDATE SET
+       introduction = EXCLUDED.introduction,
+       memories = EXCLUDED.memories,
+       site_content = EXCLUDED.site_content,
+       revision = EXCLUDED.revision,
+       updated_at = EXCLUDED.updated_at`,
+    [
+      copyArchiveId,
+      snapshot.introduction,
+      snapshot.memories,
+      snapshot.site_content,
+      snapshot.revision,
+      snapshot.updated_at,
+    ],
+  );
+}
+
+function withoutVersion(archive: Record<string, unknown>): Record<string, unknown> {
+  const { version: _version, ...content } = archive;
+  return content;
+}
+
 function getSetCookieHeaders(response: Response): string[] {
   const headers = response.headers as Headers & { getSetCookie?: () => string[] };
   if (typeof headers.getSetCookie === 'function') return headers.getSetCookie();
@@ -133,27 +247,8 @@ async function getOrCreateTestSessionCookie(): Promise<string> {
 }
 
 async function unlockForTest(): Promise<void> {
-  assert.ok(editorPassword, 'ARCHIVE_EDITOR_PASSWORD is required for editor integration tests');
-  assert.ok(testSessionCookie, 'A Clerk test session is required for editor integration tests');
-
-  const { response, body } = await requestJson(
-    '/editor/unlock',
-    {
-      method: 'POST',
-      body: JSON.stringify({ editorPassword }),
-    },
-    testSessionCookie,
-  );
-  assert.equal(response.ok, true, JSON.stringify(body));
-  assert.deepEqual(body, { unlocked: true });
-
-  const accessCookies = getSetCookieHeaders(response)
-    .map((value) => value.split(';', 1)[0])
-    .filter(Boolean);
-  assert.ok(accessCookies.length > 0, 'Editor unlock should issue an access cookie');
-  assert.ok(getSetCookieHeaders(response).some((value) => /HttpOnly/i.test(value)));
-  editorAccessCookie = accessCookies[0];
-  editorCookie = `${testSessionCookie}; ${accessCookies.join('; ')}`;
+  editorCookie = await requestEditorAccessCookie('/editor/unlock');
+  editorAccessCookie = editorCookie.split(';').map((part) => part.trim()).find((part) => part.startsWith('archive_editor_access='));
 }
 
 test('Clerk integration environment guard rejects production credentials without exposing them', async () => {
@@ -178,8 +273,8 @@ test('CI configuration reports every missing setting name without exposing crede
   const missing = getMissingCiSettings({});
   const message = getMissingCiSettingsMessage(missing);
 
-  assert.deepEqual(missing, ['CLERK_SECRET_KEY', 'ARCHIVE_EDITOR_PASSWORD', 'ARCHIVE_TEST_BASE_URL']);
-  assert.equal(message, 'Archive integration tests are missing required CI settings: CLERK_SECRET_KEY, ARCHIVE_EDITOR_PASSWORD, ARCHIVE_TEST_BASE_URL.');
+  assert.deepEqual(missing, ['CLERK_SECRET_KEY', 'ARCHIVE_EDITOR_PASSWORD', 'ARCHIVE_TEST_BASE_URL', 'DATABASE_URL']);
+  assert.equal(message, 'Archive integration tests are missing required CI settings: CLERK_SECRET_KEY, ARCHIVE_EDITOR_PASSWORD, ARCHIVE_TEST_BASE_URL, DATABASE_URL.');
   assert.equal(message.includes('sk_test_sensitive-value'), false);
   assert.equal(message.includes('editor-password-must-not-appear'), false);
   assert.equal(message.includes('session-cookie-must-not-appear'), false);
@@ -216,15 +311,74 @@ test('Clerk integration environment guard permits a configured test session cook
 test.before(async () => {
   if (!shouldRun) return;
   await assertSafeClerkTestEnvironment(clerkSecretKey);
+  assertLocalIntegrationApi();
   testSessionCookie = await getOrCreateTestSessionCookie();
   editorCookie = testSessionCookie;
   await unlockForTest();
+  copyEditorCookie = await requestEditorAccessCookie('/editor-copy/unlock');
 });
 
 test.after(async () => {
-  if (!testSessionId || !clerkSecretKey) return;
-  const clerk = createClerkClient({ secretKey: clerkSecretKey });
-  await clerk.sessions.revokeSession(testSessionId);
+  try {
+    if (testSessionId && clerkSecretKey) {
+      const clerk = createClerkClient({ secretKey: clerkSecretKey });
+      await clerk.sessions.revokeSession(testSessionId);
+    }
+  } finally {
+    await archiveDatabase?.pool.end();
+  }
+});
+
+test('first copy read clones the main snapshot and saves cannot cross site cookies', { skip: !shouldRun }, async () => {
+  assert.ok(copyEditorCookie);
+  const mainSnapshot = await requestArchive({ cache: 'no-store' });
+  const previousCopyRow = await snapshotAndClearCopyRow();
+
+  try {
+    const firstCopyRead = await requestArchiveCopy({ cache: 'no-store' }, undefined);
+    assert.equal(firstCopyRead.version, 1);
+    assert.deepEqual(withoutVersion(firstCopyRead), withoutVersion(mainSnapshot));
+
+    const uniqueMarker = `copy-isolation-${Date.now()}`;
+    const copySaveOptions = {
+      method: 'PUT',
+      body: JSON.stringify({
+        archive: { ...firstCopyRead, introduction: uniqueMarker },
+        expectedVersion: firstCopyRead.version,
+      }),
+    };
+    const mainSaveOptions = {
+      method: 'PUT',
+      body: JSON.stringify({
+        archive: { ...mainSnapshot, introduction: `${uniqueMarker}-main` },
+        expectedVersion: mainSnapshot.version,
+      }),
+    };
+
+    const mainCookieCannotSaveCopy = await requestArchiveCopyWithStatus(copySaveOptions, editorCookie);
+    assert.equal(mainCookieCannotSaveCopy.response.status, 401);
+    assert.deepEqual(mainCookieCannotSaveCopy.body, { error: 'Editor access required' });
+
+    const copyCookieCannotSaveMain = await requestArchiveWithStatus(mainSaveOptions, copyEditorCookie);
+    assert.equal(copyCookieCannotSaveMain.response.status, 401);
+    assert.deepEqual(copyCookieCannotSaveMain.body, { error: 'Editor access required' });
+
+    const authorizedCopySave = await requestArchiveCopyWithStatus(copySaveOptions, copyEditorCookie);
+    assert.equal(authorizedCopySave.response.status, 200, JSON.stringify(authorizedCopySave.body));
+    assert.equal(authorizedCopySave.body.introduction, uniqueMarker);
+
+    const savedCopy = await requestArchiveCopy({ cache: 'no-store' }, undefined);
+    assert.equal(savedCopy.introduction, uniqueMarker);
+    assert.equal(savedCopy.version, (firstCopyRead.version as number) + 1);
+
+    const mainAfterCopySave = await requestArchive({ cache: 'no-store' }, undefined);
+    assert.deepEqual(mainAfterCopySave, mainSnapshot);
+  } finally {
+    await restoreCopyRow(previousCopyRow);
+  }
+
+  const mainAfterCleanup = await requestArchive({ cache: 'no-store' }, undefined);
+  assert.deepEqual(mainAfterCleanup, mainSnapshot);
 });
 
 test('editor unlock rejects unauthenticated and incorrect credentials without revealing secrets', { skip: !shouldRun }, async () => {
