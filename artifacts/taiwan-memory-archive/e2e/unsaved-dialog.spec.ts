@@ -118,3 +118,28 @@ test('keyboard focus stays inside the unsaved changes prompt', async ({ page }) 
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByTestId('button-continue-editing')).toBeFocused();
 });
+
+for (const closeButton of ['button-cancel-editor', 'button-lock-editor'] as const) {
+  test(`Escape continues editing after ${closeButton === 'button-cancel-editor' ? 'cancel' : 'locking'} without losing the draft`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/unsaved-dialog-browser-harness.html');
+    await page.locator('[data-testid^="button-edit-memory-"]').first().click();
+
+    const titleInput = page.locator('[data-testid^="input-memory-title-"]').first();
+    const draftTitle = `Escape 草稿-${closeButton}`;
+    await titleInput.fill(draftTitle);
+    await page.getByTestId(closeButton).click();
+    await expectDialogActionsReachable(page, 900);
+
+    await page.keyboard.press('Escape');
+
+    await expect(page.getByRole('dialog', { name: '還有尚未保存的修改' })).toHaveCount(0);
+    await expect(page.getByTestId(closeButton)).toBeFocused();
+    await expect(titleInput).toHaveValue(draftTitle);
+    await expect(page.getByTestId('test-editor-closed')).toHaveCount(0);
+
+    await page.getByTestId(closeButton).click();
+    await expectDialogActionsReachable(page, 900);
+    await expect(titleInput).toHaveValue(draftTitle);
+  });
+}

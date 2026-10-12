@@ -837,6 +837,12 @@ function UnsavedChangesDialog({ saving, error, conflict, reloadingLatest, onSave
   }, []);
 
   const keepFocusInDialog = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && !saving) {
+      event.preventDefault();
+      event.stopPropagation();
+      onContinue();
+      return;
+    }
     if (event.key !== 'Tab') return;
     const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
     const first = focusable[0];
