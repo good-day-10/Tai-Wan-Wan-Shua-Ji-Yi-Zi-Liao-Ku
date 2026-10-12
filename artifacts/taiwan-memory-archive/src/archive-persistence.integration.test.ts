@@ -3,20 +3,37 @@ import test from 'node:test';
 import { createClerkClient } from '@clerk/backend';
 import { defaultSiteBlocks } from './site-content';
 
-const apiBaseUrl = (process.env.ARCHIVE_TEST_BASE_URL ?? 'http://localhost:80/api').replace(/\/$/, '');
+const configuredApiBaseUrl = process.env.ARCHIVE_TEST_BASE_URL?.trim();
+const apiBaseUrl = (configuredApiBaseUrl || 'http://localhost:80/api').replace(/\/$/, '');
 const configuredTestSessionCookie = process.env.ARCHIVE_TEST_SESSION_COOKIE?.trim();
 const clerkSecretKey = process.env.CLERK_SECRET_KEY?.trim();
 let testUserId = process.env.ARCHIVE_TEST_USER_ID?.trim();
 const testUserEmail = process.env.ARCHIVE_TEST_USER_EMAIL?.trim() || 'archive-integration-test@example.com';
-const shouldRun = process.env.RUN_ARCHIVE_INTEGRATION === '1'
-  && Boolean(configuredTestSessionCookie || clerkSecretKey);
+const integrationRequested = process.env.RUN_ARCHIVE_INTEGRATION === '1';
+const isCi = ['1', 'true'].includes(process.env.CI?.trim().toLowerCase() ?? '');
 const canCreateAdditionalTestSession = Boolean(clerkSecretKey && (testUserId || !configuredTestSessionCookie));
 const editorPassword = process.env.ARCHIVE_EDITOR_PASSWORD;
+const missingCiSettings = getMissingCiSettings(process.env);
+const shouldRun = integrationRequested && (isCi
+  ? missingCiSettings.length === 0
+  : Boolean((configuredTestSessionCookie || clerkSecretKey) && editorPassword?.trim()));
 let testSessionCookie = configuredTestSessionCookie;
 let editorCookie = testSessionCookie;
 let editorAccessCookie: string | undefined;
 let testSessionAuthorization: string | undefined;
 let testSessionId: string | undefined;
+
+function getMissingCiSettings(env: NodeJS.ProcessEnv): string[] {
+  return [
+    'CLERK_SECRET_KEY',
+    'ARCHIVE_EDITOR_PASSWORD',
+    'ARCHIVE_TEST_BASE_URL',
+  ].filter((key) => !env[key]?.trim());
+}
+
+function getMissingCiSettingsMessage(missingSettings: string[]): string {
+  return `Archive integration tests are missing required CI settings: ${missingSettings.join(', ')}.`;
+}
 
 async function assertSafeClerkTestEnvironment(
   secretKey: string | undefined,
@@ -155,6 +172,21 @@ test('Clerk integration environment guard rejects production credentials without
     },
   );
   assert.equal(apiWasChecked, false);
+});
+
+test('CI configuration reports every missing setting name without exposing credential values', () => {
+  const missing = getMissingCiSettings({});
+  const message = getMissingCiSettingsMessage(missing);
+
+  assert.deepEqual(missing, ['CLERK_SECRET_KEY', 'ARCHIVE_EDITOR_PASSWORD', 'ARCHIVE_TEST_BASE_URL']);
+  assert.equal(message, 'Archive integration tests are missing required CI settings: CLERK_SECRET_KEY, ARCHIVE_EDITOR_PASSWORD, ARCHIVE_TEST_BASE_URL.');
+  assert.equal(message.includes('sk_test_sensitive-value'), false);
+  assert.equal(message.includes('editor-password-must-not-appear'), false);
+  assert.equal(message.includes('session-cookie-must-not-appear'), false);
+});
+
+test('CI integration run fails with the names of settings missing from its environment', { skip: !isCi || !integrationRequested }, () => {
+  assert.equal(missingCiSettings.length, 0, getMissingCiSettingsMessage(missingCiSettings));
 });
 
 test('Clerk integration environment guard rejects an API server that is not configured for test keys', async () => {
