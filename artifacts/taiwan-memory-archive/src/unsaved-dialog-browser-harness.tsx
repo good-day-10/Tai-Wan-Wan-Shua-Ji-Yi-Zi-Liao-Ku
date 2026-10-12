@@ -10,6 +10,25 @@ function UnsavedDialogBrowserHarness() {
   const [editing, setEditing] = useState(true);
   const [outcome, setOutcome] = useState<CloseOutcome | null>(null);
   const editorEntryRef = useRef<HTMLButtonElement>(null);
+  const useMockSaveApi = new URLSearchParams(window.location.search).has('mockSaveApi');
+
+  const saveArchive = async (nextArchive: ArchiveData) => {
+    if (useMockSaveApi) {
+      const response = await fetch('/mock/archive', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          archive: nextArchive,
+          ...(nextArchive.version !== undefined ? { expectedVersion: nextArchive.version } : {}),
+        }),
+      });
+      if (!response.ok) throw new Error('Shared archive save failed');
+      setArchive(await response.json() as ArchiveData);
+    } else {
+      setArchive(nextArchive);
+    }
+    closeEditor('saved');
+  };
 
   const closeEditor = (nextOutcome: CloseOutcome) => {
     setOutcome(nextOutcome);
@@ -19,16 +38,16 @@ function UnsavedDialogBrowserHarness() {
 
   return <main className="p-6">
     <button ref={editorEntryRef} type="button" onClick={() => setEditing(true)} data-testid="test-editor-entry">進入編輯器</button>
+    <output data-testid="test-shared-archive" data-archive={JSON.stringify(archive)}>
+      {archive.memories[0]?.title}
+    </output>
     {!editing ? <div data-testid="test-editor-closed">
       <p data-testid="test-close-outcome">{outcome}</p>
       <p data-testid="test-saved-title">{archive.memories[0]?.title}</p>
     </div> : <Editor
       archive={archive}
       onDraftChange={() => undefined}
-      onSave={async (nextArchive) => {
-        setArchive(nextArchive);
-        closeEditor('saved');
-      }}
+      onSave={saveArchive}
       onCancel={() => closeEditor('cancelled')}
       onLock={() => closeEditor('locked')}
       onReloadLatest={async () => archive}
