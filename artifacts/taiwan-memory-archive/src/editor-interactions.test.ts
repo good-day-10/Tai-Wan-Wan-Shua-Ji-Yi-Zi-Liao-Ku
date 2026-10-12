@@ -82,7 +82,8 @@ test('unsaved changes prompt manages focus and stays reachable on short mobile s
   assert.match(appSource, /const initialFocusTarget = continueButtonRef\.current\?\.\s*disabled \? firstAvailableAction : continueButtonRef\.current/);
   assert.match(appSource, /onKeyDown=\{keepFocusInDialog\}/);
   assert.match(appSource, /const continueEditing = \(\) => \{\s*setPendingCloseAction\(null\);\s*requestAnimationFrame\(\(\) => \{\s*if \(closeTriggerRef\.current\?\.isConnected\) closeTriggerRef\.current\.focus\(\)/);
-  assert.match(appSource, /const restoreEditorEntryFocus = \(\) => \{\s*requestAnimationFrame\(\(\) => \{\s*const trigger = editorEntryTriggerRef\.current/);
+  assert.match(appSource, /export function restoreEditorEntryFocus\(trigger: HTMLButtonElement \| null\): void \{\s*requestAnimationFrame\(\(\) => \{\s*if \(trigger\?\.isConnected\) \{\s*trigger\.focus\(\);\s*return;\s*\}\s*document\.querySelector<HTMLElement>\('\[data-testid="link-home"\]'\)\?\.focus\(\);/);
+  assert.match(appSource, /const closeEditorGate = \(\) => \{\s*setGateOpen\(false\);\s*restoreEditorEntryFocus\(editorEntryTriggerRef\.current\);/);
   assert.match(appSource, /\(action === 'lock' \? onLock : onCancel\)\(\)/);
   assert.match(cssSource, /\.unsaved-dialog-backdrop\s*\{[^}]*overflow-y:\s*auto/);
   assert.match(cssSource, /\.unsaved-dialog-panel\s*\{[^}]*max-height:\s*calc\(100dvh - 2rem\)/);

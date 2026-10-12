@@ -1116,6 +1116,16 @@ function Footer({ siteContent, onEdit }: { siteContent: SiteContent; onEdit: (ev
   return <footer className="masthead"><div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20"><div className="footer-grid"><div><div className="flex items-center gap-3"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-9 w-9 rounded-full object-cover" /><SiteText siteContent={siteContent} id="footer.brand" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></div><SiteText siteContent={siteContent} id="footer.body" fallback="讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。" className="mt-5 max-w-xs text-sm leading-loose text-white/55" as="p" /></div><div><SiteText siteContent={siteContent} id="footer.explore" fallback="EXPLORE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><div className="mt-4 flex flex-col gap-3 text-sm text-white/65"><a href={`${import.meta.env.BASE_URL}#memories`} data-testid="link-footer-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /></a><a href={`${import.meta.env.BASE_URL}#about`} data-testid="link-footer-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /></a></div></div><div><SiteText siteContent={siteContent} id="footer.contribute" fallback="CONTRIBUTE" className="eyebrow text-[hsl(var(--accent))]" as="p" /><SiteText siteContent={siteContent} id="footer.contributeBody" fallback="你也有一段想保存的童年嗎？" className="mt-4 text-sm leading-loose text-white/65" as="p" /><button onClick={onEdit} className="mt-3 text-sm font-bold text-[hsl(var(--secondary))]" data-testid="button-footer-editor"><SiteText siteContent={siteContent} id="footer.contributeCta" fallback="進入編輯入口　→" /></button></div></div><div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35 sm:flex-row"><SiteText siteContent={siteContent} id="footer.copyright" fallback="一個開放給所有人的家庭記憶計畫" /><SiteText siteContent={siteContent} id="footer.copyrightMark" fallback="© 台灣玩耍記憶資料庫" /></div></div></footer>;
 }
 
+export function restoreEditorEntryFocus(trigger: HTMLButtonElement | null): void {
+  requestAnimationFrame(() => {
+    if (trigger?.isConnected) {
+      trigger.focus();
+      return;
+    }
+    document.querySelector<HTMLElement>('[data-testid="link-home"]')?.focus();
+  });
+}
+
 function Home() {
   const [location] = useLocation();
   const { isLoaded: authLoaded, isSignedIn, sessionId } = useAuth();
@@ -1146,15 +1156,9 @@ function Home() {
     editorEntryTriggerRef.current = event.currentTarget;
     setGateOpen(true);
   };
-  const restoreEditorEntryFocus = () => {
-    requestAnimationFrame(() => {
-      const trigger = editorEntryTriggerRef.current;
-      if (trigger?.isConnected) {
-        trigger.focus();
-        return;
-      }
-      document.querySelector<HTMLElement>('[data-testid="link-home"]')?.focus();
-    });
+  const closeEditorGate = () => {
+    setGateOpen(false);
+    restoreEditorEntryFocus(editorEntryTriggerRef.current);
   };
   const closeEditor = () => {
     setEditing(false);
@@ -1163,7 +1167,7 @@ function Home() {
     storeRecoveryDraft(null);
     setNeedsAuthorization(false);
     storeSessionChangeNotice(false);
-    restoreEditorEntryFocus();
+    restoreEditorEntryFocus(editorEntryTriggerRef.current);
   };
   useEffect(() => {
     if (!editing || !authLoaded) return;
@@ -1173,7 +1177,7 @@ function Home() {
     setNeedsAuthorization(true);
     storeSessionChangeNotice(true);
     editorSessionIdRef.current = null;
-    restoreEditorEntryFocus();
+    restoreEditorEntryFocus(editorEntryTriggerRef.current);
   }, [authLoaded, editing, isSignedIn, sessionId]);
   const updateSharedStatus = (status: SharedArchiveStatus) => {
     sharedStatusRef.current = status;
@@ -1263,7 +1267,7 @@ function Home() {
     <h2 className="font-bold text-[hsl(var(--destructive))]">編輯已暫停，請重新登入或解鎖</h2>
     <p className="mt-2 text-sm leading-relaxed">登入 session 已改變，為避免使用舊權限保存，編輯模式已關閉。{hasRecoverableDraft ? '未保存草稿保存在此分頁；重新授權後會載入草稿，也可以先複製一份。' : '重新授權後即可繼續編輯。'}</p>
     <div className="mt-4 flex flex-wrap gap-2">
-      {!authLoaded ? <span className="self-center text-sm text-[hsl(var(--muted-foreground))]">正在確認登入狀態…</span> : isSignedIn ? <button type="button" onClick={() => setGateOpen(true)} className="btn-primary min-h-11 px-4" data-testid="button-reauthorize-draft">重新解鎖並恢復草稿</button> : <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/sign-in`} className="btn-primary min-h-11 px-4" data-testid="link-reauthorize-draft">重新登入</a>}
+      {!authLoaded ? <span className="self-center text-sm text-[hsl(var(--muted-foreground))]">正在確認登入狀態…</span> : isSignedIn ? <button type="button" onClick={openEditorGate} className="btn-primary min-h-11 px-4" data-testid="button-reauthorize-draft">重新解鎖並恢復草稿</button> : <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/sign-in`} className="btn-primary min-h-11 px-4" data-testid="link-reauthorize-draft">重新登入</a>}
       {hasRecoverableDraft && <button type="button" onClick={() => void copyRecoveryDraft()} className="btn-outline min-h-11 px-4" data-testid="button-copy-recovery-draft">複製草稿 JSON</button>}
       {hasRecoverableDraft && <button type="button" onClick={dismissRecoveryDraft} className="btn-ghost min-h-11 px-4" data-testid="button-discard-recovery-draft">捨棄草稿</button>}
     </div>
@@ -1273,8 +1277,8 @@ function Home() {
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
+  if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
 }
 
 function Router() {
