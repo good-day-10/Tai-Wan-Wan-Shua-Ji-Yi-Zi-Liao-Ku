@@ -305,7 +305,7 @@ function customPageHref(slug: string): string {
   return `${base}/page/${slug}`;
 }
 
-function Header({ siteContent }: { siteContent: SiteContent }) {
+function Header({ siteContent, auth }: { siteContent: SiteContent; auth: ArchiveAuthState }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="masthead relative z-30">
@@ -317,7 +317,7 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
           <span><SiteText siteContent={siteContent} id="header.eyebrow" fallback="TAIWAN PLAY MEMORIES" className="block font-semibold tracking-[.16em] text-[10px] text-[hsl(var(--accent))]" /><SiteText siteContent={siteContent} id="header.title" fallback="台灣玩耍記憶資料庫" className="serif text-lg font-bold" /></span>
         </a>
         <div className="flex items-center gap-2">
-          <AuthControls />
+          <AuthControls auth={auth} />
           <button onClick={() => setMenuOpen(!menuOpen)} className="btn-ghost" aria-label={menuOpen ? '關閉導覽選單' : '開啟導覽選單'} aria-expanded={menuOpen} data-testid="button-mobile-menu"><Menu /></button>
         </div>
       </div>
@@ -331,12 +331,12 @@ function Header({ siteContent }: { siteContent: SiteContent }) {
   );
 }
 
-function AuthControls() {
+function AuthControls({ auth }: { auth: ArchiveAuthState }) {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = auth;
   if (!isLoaded) return null;
   return <div className="flex items-center">
-    {isSignedIn ? <UserButton /> : <a href={`${base}/sign-in`} className="btn-ghost text-xs" data-testid="link-sign-in">登入</a>}
+    {isSignedIn ? auth.testMode ? <span data-testid="test-authenticated-user">已登入</span> : <UserButton /> : <a href={`${base}/sign-in`} className="btn-ghost text-xs" data-testid="link-sign-in">登入</a>}
   </div>;
 }
 
@@ -361,11 +361,11 @@ function SharedArchiveNotice({ status, onRetry }: { status: SharedArchiveStatus;
   </div>;
 }
 
-function CustomPageView({ page, siteContent, onEdit, sharedStatus, onRetry }: { page: CustomPage; siteContent: SiteContent; onEdit: (event: React.MouseEvent<HTMLButtonElement>) => void; sharedStatus: SharedArchiveStatus; onRetry: () => void }) {
+function CustomPageView({ page, siteContent, auth, onEdit, sharedStatus, onRetry }: { page: CustomPage; siteContent: SiteContent; auth: ArchiveAuthState; onEdit: (event: React.MouseEvent<HTMLButtonElement>) => void; sharedStatus: SharedArchiveStatus; onRetry: () => void }) {
   const safeBackground = page.backgroundImage?.startsWith('data:image/') ? page.backgroundImage : undefined;
   return <div className="archive-shell texture min-h-dvh">
     <SharedArchiveNotice status={sharedStatus} onRetry={onRetry} />
-    <Header siteContent={siteContent} />
+    <Header siteContent={siteContent} auth={auth} />
     <main className="relative overflow-hidden">
       <section className="relative min-h-[75dvh] bg-[hsl(var(--primary))] bg-cover bg-center text-white" style={safeBackground ? { backgroundImage: `linear-gradient(hsl(202 42% 16% / .84), hsl(202 42% 16% / .92)), url("${safeBackground}")` } : undefined}>
         <div className="mx-auto max-w-5xl px-5 py-20 lg:px-8 lg:py-28">
@@ -456,13 +456,20 @@ function MemoryModal({ memory, siteContent, onClose }: { memory: Memory; siteCon
   </div>;
 }
 
-function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: () => void }) {
+type ArchiveAuthState = {
+  isLoaded: boolean;
+  isSignedIn: boolean | undefined;
+  sessionId?: string | null;
+  testMode?: boolean;
+};
+
+function PasswordGate({ auth, onUnlock, onClose }: { auth: Pick<ArchiveAuthState, 'isLoaded' | 'isSignedIn'>; onUnlock: () => void; onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = auth;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   useEffect(() => {
     let active = true;
@@ -1134,9 +1141,9 @@ export function restoreEditorEntryFocus(trigger: HTMLButtonElement | null): void
   });
 }
 
-function Home() {
+export function ArchiveHome({ auth }: { auth: ArchiveAuthState }) {
   const [location] = useLocation();
-  const { isLoaded: authLoaded, isSignedIn, sessionId } = useAuth();
+  const { isLoaded: authLoaded, isSignedIn, sessionId } = auth;
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
   const [recoveryDraft, setRecoveryDraft] = useState<ArchiveData | null>(readRecoveryDraft);
   const [needsAuthorization, setNeedsAuthorization] = useState(readSessionChangeNotice);
@@ -1283,8 +1290,13 @@ function Home() {
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
+  if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} auth={auth} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} auth={auth} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} />}</div>;
+}
+
+function Home() {
+  const auth = useAuth();
+  return <ArchiveHome auth={auth} />;
 }
 
 function Router() {

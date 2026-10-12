@@ -42,10 +42,12 @@ test('editor wiring keeps touch dragging and keyboard selection paths enabled', 
 
 test('session changes leave editing mode while keeping a recoverable draft and reauthorization path', async () => {
   const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
-  const sessionChangeEffect = appSource.match(/if \(!editing \|\| !authLoaded\) return;([\s\S]*?)\n  \}, \[authLoaded, editing, isSignedIn, sessionId\]\);/);
+  const archiveHomeSource = appSource.match(/export function ArchiveHome\(\{ auth \}: \{ auth: ArchiveAuthState \}\) \{([\s\S]*?)\n\}\n\nfunction Home\(\)/);
+  const sessionChangeEffect = archiveHomeSource?.[1].match(/if \(!editing \|\| !authLoaded\) return;([\s\S]*?)\n  \}, \[authLoaded, editing, isSignedIn, sessionId\]\);/);
 
   assert.ok(sessionChangeEffect, 'Home should observe Clerk session changes while editing');
-  assert.match(appSource, /const \{ isLoaded: authLoaded, isSignedIn, sessionId \} = useAuth\(\)/);
+  assert.match(appSource, /function Home\(\) \{\s*const auth = useAuth\(\);\s*return <ArchiveHome auth=\{auth\} \/>;\s*\}/);
+  assert.match(archiveHomeSource![1], /const \{ isLoaded: authLoaded, isSignedIn, sessionId \} = auth/);
   assert.match(sessionChangeEffect[1], /hasEditorSessionChanged\(editorSessionIdRef\.current, sessionId \?\? null, Boolean\(isSignedIn\)\)/);
   assert.match(sessionChangeEffect[1], /setEditing\(false\)/);
   assert.match(sessionChangeEffect[1], /setNeedsAuthorization\(true\)/);

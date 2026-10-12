@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/site-content.test.ts src/editor-interactions.test.ts src/shared-archive-notice.test.ts src/archive-conflicts.test.ts",
     "test:e2e": "playwright test",
+    "test:e2e:session-recovery": "playwright test e2e/session-change-recovery.spec.ts",
     "test:archive-integration": "RUN_ARCHIVE_INTEGRATION=1 tsx --test src/archive-persistence.integration.test.ts",
     "test:archive-integration:ci": "CI=1 RUN_ARCHIVE_INTEGRATION=1 tsx --test src/archive-persistence.integration.test.ts"
   },
