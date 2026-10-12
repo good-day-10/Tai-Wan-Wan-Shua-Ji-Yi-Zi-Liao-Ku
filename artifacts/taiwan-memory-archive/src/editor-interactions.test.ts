@@ -102,14 +102,16 @@ test('failed saves keep the draft and close choices available', async () => {
   assert.match(appSource, /finally \{\s*setSaving\(false\);\s*\}/);
 });
 
-test('conflict comparison fetches the latest archive without replacing or saving the draft', async () => {
+test('conflict comparison caches the latest archive without saving or closing the editor', async () => {
   const appSource = await readFile(new URL('./App.tsx', import.meta.url), 'utf8');
   const reloadFlow = appSource.match(/const loadLatestArchiveForConflictResolution = async \(\): Promise<ArchiveData> => \{([\s\S]*?)\n  \};/);
 
   assert.ok(reloadFlow, 'the page should have an explicit latest-archive comparison flow');
   assert.match(reloadFlow[1], /getSharedArchive\(\{ cache: 'no-store' \}\)/);
+  assert.match(reloadFlow[1], /setArchive\(normalized\)/);
+  assert.match(reloadFlow[1], /storeArchive\(normalized\)/);
   assert.match(reloadFlow[1], /return normalized/);
-  assert.doesNotMatch(reloadFlow[1], /setArchive|closeEditor/);
+  assert.doesNotMatch(reloadFlow[1], /closeEditor/);
   assert.doesNotMatch(reloadFlow[1], /saveSharedArchive/);
   assert.match(appSource, /findArchiveConflicts\(latestArchive, draft\)/);
   assert.match(appSource, /mergeArchiveConflictChoices\(conflictArchive, conflictDiffs, conflictChoices\)/);

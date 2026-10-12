@@ -216,6 +216,14 @@ export function loadArchive(): ArchiveData {
   return normalizeArchive(seedData);
 }
 
+export function storeArchive(archive: ArchiveData): void {
+  try {
+    localStorage.setItem('taiwan-memory-archive', JSON.stringify(archive));
+  } catch {
+    // The server response remains authoritative in memory when local storage is unavailable.
+  }
+}
+
 function getMemoryImages(memory: Memory): string[] {
   if (Array.isArray(memory.images)) return memory.images;
   return memory.image ? [memory.image] : [];
@@ -1189,11 +1197,7 @@ function Home() {
       if (!active) return;
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
-      try {
-        localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
-      } catch {
-        // The shared response is still authoritative when local storage is unavailable.
-      }
+      storeArchive(normalized);
       updateSharedStatus('ready');
     }).catch(() => {
       if (active) updateSharedStatus('error');
@@ -1219,6 +1223,8 @@ function Home() {
     try {
       const sharedArchive = await getSharedArchive({ cache: 'no-store' });
       const normalized = normalizeArchive(sharedArchive);
+      setArchive(normalized);
+      storeArchive(normalized);
       updateSharedStatus('ready');
       return normalized;
     } catch (error) {
@@ -1234,7 +1240,7 @@ function Home() {
       });
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
-      localStorage.setItem('taiwan-memory-archive', JSON.stringify(normalized));
+      storeArchive(normalized);
       closeEditor();
     } catch (error) {
       if (isArchiveConflictError(error)) {

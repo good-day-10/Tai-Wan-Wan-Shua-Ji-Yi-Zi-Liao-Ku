@@ -125,3 +125,56 @@ test('a version conflict lets the editor compare, choose content, cancel, and sa
   expect(submittedBodies[2]?.archive.introduction).toBe('第二次衝突後伺服器更新的介紹');
   expect(submittedBodies[2]?.archive.memories[0]?.title).toBe(draftTitle);
 });
+
+test('a manually loaded server version remains current after refresh without another save', async ({ page }) => {
+  let latestArchive: ArchiveSnapshot | null = null;
+  let saveRequests = 0;
+
+  await page.route('**/mock/archive', async (route) => {
+    if (route.request().method() === 'GET') {
+      if (!latestArchive) {
+        await route.fulfill({ status: 503, body: 'Archive test server is not initialized' });
+        return;
+      }
+      await route.fulfill({ json: latestArchive });
+      return;
+    }
+
+    saveRequests += 1;
+    await route.fulfill({ status: 409, json: { error: 'Archive version conflict' } });
+  });
+
+  await page.goto('/conflict-reload-browser-harness.html');
+  const initialArchiveJson = await page.getByTestId('test-shared-archive').getAttribute('data-archive');
+  expect(initialArchiveJson).not.toBeNull();
+  const initialArchive = JSON.parse(initialArchiveJson!) as ArchiveSnapshot;
+  latestArchive = structuredClone(initialArchive);
+  latestArchive.version = 9;
+  latestArchive.introduction = '重新整理後仍應保留的伺服器介紹';
+  latestArchive.memories[0]!.title = '重新整理後仍應保留的伺服器標題';
+
+  await page.locator('[data-testid^="button-edit-memory-"]').first().click();
+  await page.locator('[data-testid^="input-memory-title-"]').first().fill('不應覆蓋伺服器資料的舊草稿');
+  await page.getByTestId('button-save-archive').click();
+  await expect(page.getByTestId('save-error-editor')).toBeVisible();
+  expect(saveRequests).toBe(1);
+
+  await page.getByTestId('button-reload-latest').click();
+  await expect(page.getByTestId('conflict-resolution-dialog')).toBeVisible();
+  const cachedArchive = await page.evaluate(() => localStorage.getItem('taiwan-memory-archive'));
+  expect(cachedArchive).not.toBeNull();
+  const cachedSnapshot = JSON.parse(cachedArchive!) as ArchiveSnapshot;
+  expect(cachedSnapshot.version).toBe(9);
+  expect(cachedSnapshot.introduction).toBe('重新整理後仍應保留的伺服器介紹');
+  expect(cachedSnapshot.memories[0]?.title).toBe('重新整理後仍應保留的伺服器標題');
+
+  page.on('dialog', (dialog) => dialog.accept());
+  await page.reload();
+  const reloadedArchiveJson = await page.getByTestId('test-shared-archive').getAttribute('data-archive');
+  expect(reloadedArchiveJson).not.toBeNull();
+  const reloadedArchive = JSON.parse(reloadedArchiveJson!) as ArchiveSnapshot;
+  expect(reloadedArchive.version).toBe(9);
+  expect(reloadedArchive.introduction).toBe('重新整理後仍應保留的伺服器介紹');
+  expect(reloadedArchive.memories[0]?.title).toBe('重新整理後仍應保留的伺服器標題');
+  expect(saveRequests).toBe(1);
+});

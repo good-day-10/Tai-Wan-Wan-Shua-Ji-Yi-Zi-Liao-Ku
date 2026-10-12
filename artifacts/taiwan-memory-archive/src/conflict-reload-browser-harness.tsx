@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Editor, loadArchive, type ArchiveData } from './App';
+import { Editor, loadArchive, storeArchive, type ArchiveData } from './App';
 import './index.css';
 
 function createInitialArchive(): ArchiveData {
-  return { ...loadArchive(), version: 4 };
+  const archive = loadArchive();
+  return archive.version === undefined ? { ...archive, version: 4 } : archive;
 }
 
 function ConflictReloadBrowserHarness() {
@@ -14,7 +15,10 @@ function ConflictReloadBrowserHarness() {
   const reloadLatest = async () => {
     const response = await fetch('/mock/archive', { cache: 'no-store' });
     if (!response.ok) throw new Error('Latest shared archive could not be loaded');
-    return await response.json() as ArchiveData;
+    const latestArchive = await response.json() as ArchiveData;
+    storeArchive(latestArchive);
+    setArchive(latestArchive);
+    return latestArchive;
   };
 
   return <main className="p-6">
