@@ -22,6 +22,10 @@ test('a version conflict lets the editor compare, choose content, cancel, and sa
 
     if (route.request().method() === 'GET') {
       compareRequests += 1;
+      if (compareRequests === 1) {
+        await route.fulfill({ status: 503, body: 'Temporary archive reload failure' });
+        return;
+      }
       await route.fulfill({ json: latestArchive });
       return;
     }
@@ -73,6 +77,13 @@ test('a version conflict lets the editor compare, choose content, cancel, and sa
   expect(submittedBodies[0]?.expectedVersion).toBe(4);
 
   await page.getByTestId('button-reload-latest').click();
+  await expect(page.getByTestId('save-error-editor')).toContainText('最新資料載入失敗，草稿仍保留');
+  await expect(page.getByTestId('button-reload-latest')).toBeEnabled();
+  await expect(titleInput).toHaveValue(draftTitle);
+  await expect(page.getByTestId('textarea-introduction')).toHaveValue(draftIntroduction);
+  expect(submittedBodies).toHaveLength(1);
+
+  await page.getByTestId('button-reload-latest').click();
   await expect(page.getByTestId('conflict-resolution-dialog')).toBeVisible();
   await expect(page.getByTestId('conflict-item-0')).toContainText('資料庫介紹');
   await expect(page.getByTestId('conflict-value-server-0')).toContainText('伺服器更新的資料庫介紹');
@@ -84,7 +95,7 @@ test('a version conflict lets the editor compare, choose content, cancel, and sa
   await expect(page.getByTestId('conflict-resolution-dialog')).toHaveCount(0);
   await expect(titleInput).toHaveValue(draftTitle);
   expect(submittedBodies).toHaveLength(1);
-  expect(compareRequests).toBe(1);
+  expect(compareRequests).toBe(2);
 
   await page.getByTestId('button-reload-latest').click();
   await expect(page.getByTestId('conflict-resolution-dialog')).toBeVisible();
@@ -107,7 +118,7 @@ test('a version conflict lets the editor compare, choose content, cancel, and sa
   await expect(page.getByTestId('test-editor-closed')).toBeVisible();
   await expect(page.getByTestId('test-saved-title')).toHaveText(draftTitle);
   await expect(page.getByTestId('test-saved-version')).toHaveText('11');
-  expect(compareRequests).toBe(3);
+  expect(compareRequests).toBe(4);
   expect(submittedBodies).toHaveLength(3);
   expect(submittedBodies[2]?.expectedVersion).toBe(10);
   expect(submittedBodies[2]?.archive.version).toBe(10);
