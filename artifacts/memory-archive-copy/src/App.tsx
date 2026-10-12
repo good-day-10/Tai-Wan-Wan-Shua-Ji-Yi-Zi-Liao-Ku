@@ -10,6 +10,7 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { createDefaultSiteContent as createSharedDefaultSiteContent, normalizeSiteContent as normalizeSharedSiteContent } from './site-content';
 import { getDraggedPosition } from './editor-interactions';
+import WonderScoutsSite, { wonderScoutsMemories } from './wonder-scouts-site';
 
 type Memory = {
   id: string;
@@ -143,7 +144,13 @@ function normalizeSiteContent(input?: SiteContentInput): SiteContent {
 }
 
 function normalizeArchive(value: { version?: number; memories: Memory[]; introduction: string; siteContent?: SiteContentInput }): ArchiveData {
-  return { version: value.version, introduction: value.introduction, memories: value.memories, siteContent: normalizeSiteContent(value.siteContent) };
+  const migrated = value.siteContent?.blocks?.some((block) => block.id === 'ws.migration') === true;
+  return {
+    version: value.version,
+    introduction: migrated ? value.introduction : '我們是台灣的孩子、是一群中小學生；我們走進古蹟、研究歷史、探索自然科學與天文生物，用青少年的視角設計沉浸式體驗，為每一個有故事的地方注入新的生命力。',
+    memories: migrated ? value.memories : wonderScoutsMemories,
+    siteContent: normalizeSiteContent(value.siteContent),
+  };
 }
 
 const seedData: ArchiveData = {
@@ -158,6 +165,9 @@ const seedData: ArchiveData = {
     { id: '06', title: '河堤邊的橡皮筋', location: '宜蘭・羅東', era: '1980 年代', category: '童謠遊戲', storyteller: '吳秀真，1969 年生', excerpt: '我們唱得越大聲，橡皮筋就跳得越高。', story: '三個人就可以玩橡皮筋。兩個人站在兩側，把一條彩色的橡皮筋繃在小腿間，其他人一邊唱歌一邊跳。高度從腳踝一路升到腰，唱錯歌詞的人要換邊。\n\n羅東河堤的風很大，頭髮常常被吹得亂七八糟，但我們還是唱得很大聲。歌詞有時候是自己亂編的，只有我們聽得懂。這些歌沒有被錄下來，卻在很多人的身體裡記得節奏。', color: '#d28a68', mark: '唱遊', },
   ],
 };
+
+seedData.introduction = '我們是台灣的孩子、是一群中小學生；我們走進古蹟、研究歷史、探索自然科學與天文生物，用青少年的視角設計沉浸式體驗，為每一個有故事的地方注入新的生命力。';
+seedData.memories = wonderScoutsMemories;
 
 const categories = ['全部', '童玩', '巷弄遊戲', '家族手作', '電玩時光', '集體遊戲', '童謠遊戲'];
 const queryClient = new QueryClient();
@@ -1015,7 +1025,7 @@ function Home() {
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
   if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><Header siteContent={archive.siteContent} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</div>;
+  return <div><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><WonderScoutsSite memories={archive.memories} siteContent={archive.siteContent} authControls={<AuthControls />} onOpen={setDetail} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</div>;
 }
 
 function Router() {

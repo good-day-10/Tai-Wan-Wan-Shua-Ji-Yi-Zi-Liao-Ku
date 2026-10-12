@@ -62,6 +62,22 @@ export const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'footer.contributeCta', label: '頁尾編輯連結', section: '頁尾', html: '進入編輯入口　→', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.copyright', label: '頁尾版權文字', section: '頁尾', html: '一個開放給所有人的家庭記憶計畫', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 少年導覽隊', x: 0, y: 0, width: 100, align: 'right' },
+  { id: 'ws.migration', label: '搬遷版本標記', section: '網站設定', html: 'wonder-scouts-2026-10', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.hero.title', label: '首頁主標題', section: '主視覺', html: '少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.hero.body', label: '首頁介紹', section: '主視覺', html: '我們是台灣的孩子、是一群中小學生；我們走進古蹟、研究歷史、探索自然科學與天文生物，用青少年的視角設計沉浸式體驗，為每一個有故事的地方注入新的生命力。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.about.0.title', label: '從聽歷史到走進歷史：標題', section: '關於我們', html: '從「聽歷史」到「走進歷史」', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.about.0.body', label: '從聽歷史到走進歷史：介紹', section: '關於我們', html: '以感官體驗為主軸，設計角色扮演、情境佈置與互動體驗，讓參與者透過行動探索、觸碰歷史的溫度。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.about.1.title', label: '從旁觀敘述到時空轉譯：標題', section: '關於我們', html: '從「旁觀敘述」到「時空轉譯」', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.about.1.body', label: '從旁觀敘述到時空轉譯：介紹', section: '關於我們', html: '少年主動研究歷史、理解背景、整理觀點，透過導覽角色轉換，讓文化傳承成為跨世代共創。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.about.2.title', label: '從單點行動到數位聯網：標題', section: '關於我們', html: '從「單點行動」到「數位聯網」', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.about.2.body', label: '從單點行動到數位聯網：介紹', section: '關於我們', html: '拍攝實境導覽影片、佈置現場 QR Code，將青少年的導覽與創意轉化為不限時空的數位資產。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.results.title', label: '成果區標題', section: '導覽成果', html: '從將軍村到霧峰，我們走過的每一步', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.results.body', label: '成果區介紹', section: '導覽成果', html: '從一次市集擺攤開始，到接待縣政府、社區大學，再到跨縣市複製模組。每一場導覽都是一次真實的學習。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.partner.title', label: '合作區標題', section: '場域合作', html: '讓你的場域也有少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.partner.body', label: '合作區介紹', section: '場域合作', html: '我們提供從研究、設計到數位永續的完整服務，一起讓更多人感受到歷史的溫度。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.join.title', label: '見習隊標題', section: '加入我們', html: '你的場域，可以是下一個起點', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.join.body', label: '見習隊介紹', section: '加入我們', html: '少年導覽隊的模式已經驗證可以複製。如果你也相信年輕人有能力說好歷史的故事，我們邀請你一起來。', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.donate.title', label: '支持我們標題', section: '支持我們', html: '讓每一個有故事的地方，都有少年導覽隊。', x: 0, y: 0, width: 100, align: 'left' },
 ];
 
 export function createDefaultSiteContent(): SiteContent {
