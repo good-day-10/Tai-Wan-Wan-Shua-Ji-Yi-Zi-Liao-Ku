@@ -1,93 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import './index.css';
 
-type SheetKeyValueMap = Record<string, string>;
-
-type FormResponse = {
-  Name?: string;
-  name?: string;
-  Email?: string;
-  email?: string;
-  Message?: string;
-  message?: string;
-  Comment?: string;
-  comment?: string;
-  Timestamp?: string;
-  timestamp?: string;
-  Date?: string;
-  date?: string;
+type Memory = {
+  id: string;
+  title: string;
+  location: string;
+  era: string;
+  category: string;
+  storyteller: string;
+  excerpt: string;
+  color: string;
+  img: string;
 };
 
-const SHEET_CONFIG = {
-  styles: {
-    url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTjI8FZQcYhRev1IW24ZxVQ8dNk5qxwpliq5ypHERWkaSaGK1VeuYw9wk5yoVavs2ABpJuUXFNpRObM/pub?gid=824524678&single=true&output=csv',
-    label: 'Site_Styles',
-  },
-  content: {
-    url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTjI8FZQcYhRev1IW24ZxVQ8dNk5qxwpliq5ypHERWkaSaGK1VeuYw9wk5yoVavs2ABpJuUXFNpRObM/pub?gid=824524678&single=true&output=csv',
-    label: 'Site_Content',
-  },
-  formResponses: {
-    url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTjI8FZQcYhRev1IW24ZxVQ8dNk5qxwpliq5ypHERWkaSaGK1VeuYw9wk5yoVavs2ABpJuUXFNpRObM/pub?gid=824524678&single=true&output=csv',
-    label: 'Form_Responses',
-  },
-};
-
-const DEFAULT_STYLES: Record<string, string> = {
-  background: 'hsl(42 43% 96%)',
-  foreground: 'hsl(205 44% 18%)',
-  border: 'hsl(36 24% 83%)',
-  card: 'hsl(42 48% 98%)',
-  primary: 'hsl(186 56% 30%)',
-  'primary-foreground': 'hsl(42 48% 98%)',
-  secondary: 'hsl(19 67% 65%)',
-  'secondary-foreground': 'hsl(205 44% 18%)',
-  muted: 'hsl(39 26% 91%)',
-  'muted-foreground': 'hsl(205 18% 42%)',
-  accent: 'hsl(39 76% 57%)',
-  'accent-foreground': 'hsl(205 44% 18%)',
-  destructive: 'hsl(3 64% 47%)',
-  'destructive-foreground': 'hsl(42 48% 98%)',
-  'app-font-sans': '"Noto Sans TC", ui-sans-serif, sans-serif',
-  'app-font-serif': '"Noto Serif TC", Georgia, serif',
-};
-
-const DEFAULT_CONTENT: SheetKeyValueMap = {
-  brand_name: '台灣玩耍記憶資料庫',
-  nav_memories: '記憶索引',
-  nav_about: '關於資料庫',
-  nav_results: '導覽成果',
-  nav_contact: '聯絡我們',
-  hero_eyebrow: '一座正在長大的集體記憶',
-  hero_title: '玩過的，<span style="color: hsl(var(--secondary))">就不會消失。</span>',
-  hero_description: '一座收藏台灣童年與遊戲記憶的溫柔資料庫。從巷口的彈珠、廟埕的躲貓貓，到放學路上的一段段集體回憶，這裡都在等人把它說出來。',
-  hero_cta: '走進記憶索引',
-  hero_meta: '收錄自 1960 年代至今的台灣故事',
-  hero_note_label: 'ARCHIVE NOTE / 0001',
-  hero_note_status: '保存中',
-  hero_note_quote: '「那時候沒有<br />手機，<br />但我們每天<br />都約得到。」',
-  hero_note_location: '彰化・鹿港',
-  hero_note_era: '1980 年代',
-  memory_index_kicker: 'MEMORY INDEX / 記憶索引',
-  memory_index_title: '一人說起，<span style="color: hsl(var(--primary))">大家想起。</span>',
-  memory_index_desc: '每一筆記憶都由一位說故事的人開始。用地點、年代或一個你熟悉的詞，找找看。',
-  memory_count: '目前收藏',
-  about_kicker: 'WHY WE KEEP / 為什麼保存',
-  about_title: '把「以前」<span style="color: hsl(var(--secondary))">交給以後。</span>',
-  about_body: '一個孩子記得的遊戲，常常也是一個家庭、一條街，甚至一整個時代的共同記憶。這座資料庫正試著把那些不一定被寫進教科書的日常，留下來成為下一代可以回看的生活地圖。',
-  footer_brand: '台灣玩耍記憶資料庫',
-  footer_body: '讓那些曾經一起玩過的事，繼續在不同世代之間找到彼此。',
-  footer_explore: 'EXPLORE',
-  footer_contribute: 'CONTRIBUTE',
-  footer_contribute_body: '你也有一段想保存的童年嗎？',
-  footer_cta: '進入編輯入口 →',
-  footer_copyright: '一個開放給所有人的家庭記憶計畫',
-  contact_title: '聯絡我們',
-  contact_body: '如果你有想保存的童年記憶、地方故事，或是希望合作，歡迎與我們聯絡。',
-  form_title: '最新回饋',
-};
-
-const MEMORY_CARDS = [
+const memoryCards: Memory[] = [
   {
     id: '01',
     title: '鐵皮屋頂下的紙上遊戲',
@@ -95,10 +20,9 @@ const MEMORY_CARDS = [
     era: '1970 年代',
     category: '童玩',
     storyteller: '陳阿姨，1958 年生',
-    excerpt: '下雨天不能去外面跑，大家就會把紙當成地圖，一起在鐵皮屋頂下注。',
-    color: '#cf7657',
-    mark: '童玩',
-    image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1200&q=80',
+    excerpt: '下雨天不准外出，我們就在鐵皮屋頂上用紙張、石子和想像力畫出一座小小王國。',
+    color: '#B84A39',
+    img: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: '02',
@@ -107,10 +31,9 @@ const MEMORY_CARDS = [
     era: '1980 年代',
     category: '巷弄遊戲',
     storyteller: '林志明，1972 年生',
-    excerpt: '那面圍牆不是邊界，而是整個街區的小型競技場。',
-    color: '#3e8090',
-    mark: '巷弄',
-    image: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1200&q=80',
+    excerpt: '那面牆不是界線，而是遊戲的舞台；你一聲「彈珠！」，整條巷子都熱起來了。',
+    color: '#4A7C59',
+    img: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: '03',
@@ -119,10 +42,9 @@ const MEMORY_CARDS = [
     era: '1990 年代',
     category: '家族手作',
     storyteller: '黃小芳，1985 年生',
-    excerpt: '竹片飛起來以前，阿公先教我們量、剪、綁，像是學一種會飛的手藝。',
-    color: '#7d8e58',
-    mark: '手作',
-    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+    excerpt: '阿公把竹片和紙張剪成翅膀，教我們在午後的風裡學會如何看見一雙微小的翅膀。',
+    color: '#F0A830',
+    img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: '04',
@@ -131,10 +53,9 @@ const MEMORY_CARDS = [
     era: '1990 年代',
     category: '電玩時光',
     storyteller: '周柏翰，1981 年生',
-    excerpt: '電視機前面的那個瞬間，幾乎就像全世界都停在同一個畫面裡。',
-    color: '#b98a35',
-    mark: '電玩',
-    image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80',
+    excerpt: '四點半之後，巷子安靜下來，只有控制器和我們的笑聲在房間裡面打轉。',
+    color: '#B84A39',
+    img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: '05',
@@ -143,10 +64,9 @@ const MEMORY_CARDS = [
     era: '1960 年代',
     category: '集體遊戲',
     storyteller: '王金蘭，1951 年生',
-    excerpt: '夕陽把每個人都變成了下一秒會跑掉的影子。',
-    color: '#a25b53',
-    mark: '集體',
-    image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
+    excerpt: '夕陽把每個人都變成了追逐的影子，跑得快的人總是最先笑出來。',
+    color: '#4A7C59',
+    img: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: '06',
@@ -155,543 +75,316 @@ const MEMORY_CARDS = [
     era: '1980 年代',
     category: '童謠遊戲',
     storyteller: '吳秀真，1969 年生',
-    excerpt: '我們唱得越大聲，橡皮筋就像一條連著我們所有笑聲的線。',
-    color: '#6c6a8d',
-    mark: '童謠',
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80',
+    excerpt: '我們一起唱，一起跳，彈力繩像一條把所有笑聲綁在一起的線。',
+    color: '#F0A830',
+    img: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80',
   },
 ];
 
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let current = '';
-  let row: string[] = [];
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      row.push(current);
-      current = '';
-    } else if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') i += 1;
-      row.push(current);
-      if (row.some((cell) => cell.trim() !== '')) rows.push(row);
-      row = [];
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  if (current.length > 0 || row.length > 0) {
-    row.push(current);
-    if (row.some((cell) => cell.trim() !== '')) rows.push(row);
-  }
-
-  return rows;
-}
-
-function rowsToMap(rows: string[][]): SheetKeyValueMap {
-  if (!rows || rows.length < 2) return {};
-  const map: SheetKeyValueMap = {};
-
-  for (const row of rows.slice(1)) {
-    if (!row || row.length < 2) continue;
-    const key = (row[0] ?? '').trim();
-    const value = (row[1] ?? '').trim();
-    if (!key) continue;
-    map[key] = value;
-  }
-
-  return map;
-}
-
-function rowsToFormResponses(rows: string[][]): FormResponse[] {
-  if (!rows || rows.length < 2) return [];
-  const headers = rows[0].map((header) => header.trim());
-
-  return rows.slice(1)
-    .filter((row) => row.some((cell) => cell.trim() !== ''))
-    .map((row) => {
-      const entry: FormResponse = {};
-      headers.forEach((header, index) => {
-        entry[header as keyof FormResponse] = (row[index] ?? '').trim();
-      });
-      return entry;
-    });
-}
-
-function escapeHtml(value: string): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function applyStyles(styleMap: Record<string, string>): void {
-  const root = document.documentElement;
-  const cssVars: Record<string, string> = {
-    background: styleMap.background ?? DEFAULT_STYLES.background,
-    foreground: styleMap.foreground ?? DEFAULT_STYLES.foreground,
-    border: styleMap.border ?? DEFAULT_STYLES.border,
-    card: styleMap.card ?? DEFAULT_STYLES.card,
-    primary: styleMap.primary ?? DEFAULT_STYLES.primary,
-    'primary-foreground': styleMap['primary-foreground'] ?? DEFAULT_STYLES['primary-foreground'],
-    secondary: styleMap.secondary ?? DEFAULT_STYLES.secondary,
-    'secondary-foreground': styleMap['secondary-foreground'] ?? DEFAULT_STYLES['secondary-foreground'],
-    muted: styleMap.muted ?? DEFAULT_STYLES.muted,
-    'muted-foreground': styleMap['muted-foreground'] ?? DEFAULT_STYLES['muted-foreground'],
-    accent: styleMap.accent ?? DEFAULT_STYLES.accent,
-    'accent-foreground': styleMap['accent-foreground'] ?? DEFAULT_STYLES['accent-foreground'],
-    destructive: styleMap.destructive ?? DEFAULT_STYLES.destructive,
-    'destructive-foreground': styleMap['destructive-foreground'] ?? DEFAULT_STYLES['destructive-foreground'],
-    'app-font-sans': styleMap['app-font-sans'] ?? DEFAULT_STYLES['app-font-sans'],
-    'app-font-serif': styleMap['app-font-serif'] ?? DEFAULT_STYLES['app-font-serif'],
-  };
-
-  Object.entries(cssVars).forEach(([key, value]) => {
-    root.style.setProperty(`--${key}`, value);
-  });
-}
-
-function applyContent(contentMap: SheetKeyValueMap): void {
-  const merged = { ...DEFAULT_CONTENT, ...contentMap };
-  const nodes = document.querySelectorAll('[data-sheet-key]');
-  nodes.forEach((node) => {
-    const key = node.getAttribute('data-sheet-key');
-    if (!key) return;
-    const value = merged[key];
-    if (value === undefined || value === null) return;
-    if (node instanceof HTMLButtonElement || node instanceof HTMLAnchorElement) {
-      node.textContent = value;
-    } else {
-      node.innerHTML = value;
-    }
-  });
-}
-
-async function fetchCsv(url: string): Promise<string> {
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`CSV request failed: ${response.status}`);
-  return response.text();
-}
-
-function normalizeStyleMap(raw: SheetKeyValueMap): Record<string, string> {
-  const out: Record<string, string> = {};
-  const mapping: Record<string, string> = {
-    background: 'background',
-    foreground: 'foreground',
-    border: 'border',
-    card: 'card',
-    primary_color: 'primary',
-    primaryColor: 'primary',
-    secondary_color: 'secondary',
-    secondaryColor: 'secondary',
-    muted_color: 'muted',
-    mutedColor: 'muted',
-    accent_color: 'accent',
-    accentColor: 'accent',
-    destructive_color: 'destructive',
-    destructiveColor: 'destructive',
-    text_color: 'foreground',
-    textColor: 'foreground',
-    heading_color: 'foreground',
-    headingColor: 'foreground',
-    font_family: 'app-font-sans',
-    fontFamily: 'app-font-sans',
-    serif_font: 'app-font-serif',
-    serifFont: 'app-font-serif',
-  };
-
-  Object.entries(raw).forEach(([key, value]) => {
-    const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_');
-    const cssVar = mapping[normalizedKey] ?? normalizedKey;
-    if (!cssVar) return;
-    out[cssVar] = value.trim();
-  });
-
-  return out;
-}
-
-function prettyDate(value: string): string {
-  if (!value) return '未提供時間';
-  return value;
-}
-
-function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-
-  if (!open) return null;
-
-  return (
-    <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true">
-      <div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <div>
-            <p className="eyebrow text-[hsl(var(--primary))]">LOGIN / 登入</p>
-            <h2 className="serif mt-2 text-2xl font-bold">管理入口</h2>
-          </div>
-          <button type="button" className="btn-ghost" onClick={onClose}>關閉</button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-semibold">帳號</label>
-            <input
-              className="input-archive"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="請輸入帳號"
-              autoComplete="username"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-semibold">密碼</label>
-            <input
-              className="input-archive"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="請輸入密碼"
-              autoComplete="current-password"
-            />
-          </div>
-
-          <button
-            type="button"
-            className="btn-primary w-full justify-center"
-            onClick={() => {
-              if (username && password) {
-                window.alert('登入成功（示範模式）');
-                onClose();
-              } else {
-                window.alert('請輸入帳號與密碼');
-              }
-            }}
-          >
-            登入
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const responseCards = [
+  {
+    name: '李阿姨',
+    email: 'li@memory.tw',
+    message: '我最懷念的是巷口那一群人一起玩骰子和輪盤，真的很溫暖。',
+    time: '2026-09-20',
+  },
+  {
+    name: '王先生',
+    email: 'wang@memory.tw',
+    message: '這個資料庫讓我想起小時候和兄弟姊妹一起在公園裡跑來跑去。',
+    time: '2026-09-18',
+  },
+  {
+    name: '曾小妹',
+    email: 'tseng@memory.tw',
+    message: '我也想把阿公教我的竹蜻蜓故事保存起來。',
+    time: '2026-09-11',
+  },
+];
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
+  const [fontScale, setFontScale] = useState(1);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [formResponses, setFormResponses] = useState<FormResponse[]>([]);
-  const [contentMap, setContentMap] = useState<SheetKeyValueMap>({});
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const stylesCsv = await fetchCsv(SHEET_CONFIG.styles.url);
-        const contentCsv = await fetchCsv(SHEET_CONFIG.content.url);
-        const formCsv = await fetchCsv(SHEET_CONFIG.formResponses.url);
+    document.documentElement.style.setProperty('--site-scale', `${fontScale}`);
+  }, [fontScale]);
 
-        const styleRows = parseCsv(stylesCsv);
-        const contentRows = parseCsv(contentCsv);
-        const formRows = parseCsv(formCsv);
-
-        const rawStyleMap = rowsToMap(styleRows);
-        const rawContentMap = rowsToMap(contentRows);
-        const formEntries = rowsToFormResponses(formRows);
-
-        applyStyles(normalizeStyleMap(rawStyleMap));
-        applyContent({ ...DEFAULT_CONTENT, ...rawContentMap });
-        setContentMap({ ...DEFAULT_CONTENT, ...rawContentMap });
-        setFormResponses(formEntries);
-      } catch (error) {
-        console.error('Sheet data load failed:', error);
-        applyStyles(DEFAULT_STYLES);
-        applyContent(DEFAULT_CONTENT);
-        setContentMap(DEFAULT_CONTENT);
-        setFormResponses([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, []);
-
-  const responseCards = useMemo(() => {
-    if (!formResponses.length) {
-      return [
-        {
-          Name: '尚無回應',
-          Email: 'waiting',
-          Message: '目前沒有可顯示的表單資料。',
-          Timestamp: '等待中',
-        },
-      ];
-    }
-
-    return formResponses.slice(-6).reverse();
-  }, [formResponses]);
+  const stats = useMemo(
+    () => [
+      { label: '記憶收藏', value: '326+' },
+      { label: '故事分享', value: '84 篇' },
+      { label: '世代連結', value: '12 組' },
+    ],
+    [],
+  );
 
   return (
-    <div className="archive-shell texture">
-      <header className="masthead relative z-30">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
-          <a href="#top" className="flex items-center gap-3" data-testid="link-home">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]">
-              <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=400&q=80" alt="" className="h-10 w-10 rounded-full object-cover" />
-            </span>
-            <span>
-              <span className="block text-[10px] font-semibold tracking-[.16em] text-[hsl(var(--accent))]" data-sheet-key="hero_eyebrow">{DEFAULT_CONTENT.hero_eyebrow}</span>
-              <span className="block text-base font-bold text-white" data-sheet-key="brand_name">{DEFAULT_CONTENT.brand_name}</span>
-            </span>
-          </a>
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="container topbar-inner">
+          <div className="brand-wrap">
+            <div className="brand-mark">童</div>
+            <div>
+              <p className="eyebrow">Taiwan Play Memories</p>
+              <h1 className="brand-name">台灣玩耍記憶資料庫</h1>
+            </div>
+          </div>
 
-          <nav className="hidden items-center gap-6 text-sm text-white/80 md:flex">
-            <a href="#memories" className="transition hover:text-white" data-sheet-key="nav_memories">{DEFAULT_CONTENT.nav_memories}</a>
-            <a href="#about" className="transition hover:text-white" data-sheet-key="nav_about">{DEFAULT_CONTENT.nav_about}</a>
-            <a href="#responses" className="transition hover:text-white" data-sheet-key="nav_results">{DEFAULT_CONTENT.nav_results}</a>
-            <a href="#contact" className="transition hover:text-white" data-sheet-key="nav_contact">{DEFAULT_CONTENT.nav_contact}</a>
+          <nav className="main-nav" aria-label="主導覽">
+            <a href="#memory-index">記憶索引</a>
+            <a href="#about">關於資料庫</a>
+            <a href="#responses">回饋牆</a>
+            <a href="#contact">聯絡我們</a>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <button type="button" className="btn-ghost text-xs" onClick={() => setLoginOpen(true)}>
+          <div className="tool-group">
+            <div className="font-tools" aria-label="字級調整">
+              <button type="button" onClick={() => setFontScale((value) => Math.max(0.9, Number((value - 0.1).toFixed(2))))} aria-label="縮小字級">
+                A-
+              </button>
+              <button type="button" onClick={() => setFontScale((value) => Math.min(1.25, Number((value + 0.1).toFixed(2))))} aria-label="放大字級">
+                A+
+              </button>
+            </div>
+            <button type="button" className="login-btn" onClick={() => setLoginOpen(true)}>
               登入
-            </button>
-            <button type="button" className="btn-primary text-xs" onClick={() => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' })}>
-              立即開始
             </button>
           </div>
         </div>
       </header>
 
       <main>
-        <section id="top" className="masthead relative overflow-hidden">
-          <div className="hero-orbit" aria-hidden="true"><span className="hero-dot" /></div>
-          <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-16 lg:grid-cols-[1.1fr_.9fr] lg:px-8 lg:pb-28 lg:pt-24">
-            <div className="max-w-3xl">
-              <p className="eyebrow fade-up text-[hsl(var(--accent))]" data-sheet-key="hero_eyebrow">
-                {DEFAULT_CONTENT.hero_eyebrow}
+        <section className="hero-section">
+          <div className="hero-bg" aria-hidden="true" />
+          <div className="container hero-grid">
+            <div className="hero-copy">
+              <p className="section-kicker">一座正在長大的集體記憶</p>
+              <h2 className="hero-title">
+                玩過的，
+                <span>就不會消失。</span>
+              </h2>
+              <p className="hero-text">
+                我們在巷口、廟埕、斜坡、校園裡留下過笑聲與腳步，這裡就是把那些生活裡最小的幸福，一筆一筆保存起來的地方。
               </p>
-              <h1 className="display-title fade-up delay-1 mt-4 max-w-2xl text-5xl font-black text-white sm:text-7xl" data-sheet-key="hero_title">
-                <span dangerouslySetInnerHTML={{ __html: DEFAULT_CONTENT.hero_title }} />
-              </h1>
-              <p className="fade-up delay-2 mt-8 max-w-xl text-base leading-loose text-white/70 sm:text-lg" data-sheet-key="hero_description">
-                {DEFAULT_CONTENT.hero_description}
-              </p>
-              <div className="fade-up delay-3 mt-9 flex flex-wrap items-center gap-4">
-                <button type="button" className="btn-primary" onClick={() => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' })}>
-                  <span data-sheet-key="hero_cta">{DEFAULT_CONTENT.hero_cta}</span>
+
+              <div className="hero-actions">
+                <button type="button" className="primary-btn" onClick={() => document.getElementById('memory-index')?.scrollIntoView({ behavior: 'smooth' })}>
+                  走進記憶索引
                 </button>
-                <span className="text-xs tracking-wide text-white/45" data-sheet-key="hero_meta">{DEFAULT_CONTENT.hero_meta}</span>
+                <button type="button" className="ghost-btn" onClick={() => setLoginOpen(true)}>
+                  管理入口
+                </button>
+              </div>
+
+              <div className="stats-row" aria-label="網站統計">
+                {stats.map((item) => (
+                  <div key={item.label} className="stat-box">
+                    <strong>{item.value}</strong>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="relative hidden min-h-[330px] items-end justify-end lg:flex">
-              <div className="fade-up delay-4 relative w-[330px] rotate-3 border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur-sm">
-                <div className="mb-4 flex items-center justify-between text-[10px] tracking-[.18em] text-white/60">
-                  <span data-sheet-key="hero_note_label">{DEFAULT_CONTENT.hero_note_label}</span>
-                  <span data-sheet-key="hero_note_status">{DEFAULT_CONTENT.hero_note_status}</span>
+            <div className="hero-card-wrap">
+              <div className="memory-note">
+                <div className="note-head">
+                  <span>ARCHIVE NOTE</span>
+                  <span className="status-pill">保存中</span>
                 </div>
-                <p className="serif border-l-2 border-[hsl(var(--secondary))] pb-1 pl-4 text-2xl leading-tight text-white" data-sheet-key="hero_note_quote">
-                  <span dangerouslySetInnerHTML={{ __html: DEFAULT_CONTENT.hero_note_quote }} />
+                <p className="quote-mark">「</p>
+                <p className="quote-body">
+                  那時候沒有手機，
+                  <br />
+                  但我們每天都約得到。
                 </p>
-                <div className="mt-7 flex justify-between text-xs text-white/50">
-                  <span data-sheet-key="hero_note_location">{DEFAULT_CONTENT.hero_note_location}</span>
-                  <span data-sheet-key="hero_note_era">{DEFAULT_CONTENT.hero_note_era}</span>
+                <div className="note-meta">
+                  <span>彰化・鹿港</span>
+                  <span>1980 年代</span>
                 </div>
               </div>
             </div>
           </div>
-          <div className="relative mx-auto max-w-7xl px-5 pb-5 lg:px-8"><div className="flex items-center gap-3 text-[10px] tracking-[.2em] text-white/40"><span className="h-px w-8 bg-[hsl(var(--secondary))]" /><span>SCROLL TO REMEMBER</span></div></div>
         </section>
 
-        <section id="memories" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+        <section id="memory-index" className="content-section">
+          <div className="container section-top">
             <div>
-              <p className="section-kicker text-[hsl(var(--primary))]" data-sheet-key="memory_index_kicker">{DEFAULT_CONTENT.memory_index_kicker}</p>
-              <h2 className="serif mt-3 text-4xl font-black text-[hsl(var(--foreground))]" data-sheet-key="memory_index_title">
-                <span dangerouslySetInnerHTML={{ __html: DEFAULT_CONTENT.memory_index_title }} />
-              </h2>
+              <p className="section-kicker alt">MEMORY INDEX / 記憶索引</p>
+              <h3 className="section-title">一人說起，大家想起。</h3>
             </div>
-            <p className="max-w-xl text-sm leading-relaxed text-[hsl(var(--muted-foreground))]" data-sheet-key="memory_index_desc">
-              {DEFAULT_CONTENT.memory_index_desc}
+            <p className="lead-copy">
+              每一筆記憶都由一位說故事的人開始，用地點、年代或一個你熟悉的詞，翻開屬於你那一段童年。
             </p>
           </div>
 
-          <div className="mt-12 flex flex-col gap-5 border-y border-[hsl(var(--border))] py-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative max-w-sm flex-1">
-              <input
-                className="input-archive search-input"
-                type="text"
-                readOnly
-                placeholder="搜尋地點、人物或記憶…"
-                value=""
-                aria-label="Search"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="記憶分類篩選">
-              {['全部', '童玩', '巷弄遊戲', '家族手作', '電玩時光', '集體遊戲', '童謠遊戲'].map((item) => (
-                <button key={item} type="button" className="filter-chip rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--foreground))]" readOnly>
-                  {item}
+          <div className="container filter-row">
+            <div className="search-box">搜尋地點、人物或記憶…</div>
+            <div className="chip-group" aria-label="分類切換">
+              {['全部', '童玩', '巷弄遊戲', '家族手作', '電玩時光', '集體遊戲', '童謠遊戲'].map((kit) => (
+                <button key={kit} type="button" className="chip" aria-label={kit}>
+                  {kit}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {MEMORY_CARDS.map((memory, index) => (
-              <article key={memory.id} className="memory-card overflow-hidden rounded-[1.15rem] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))]" style={{ animationDelay: `${index * 90}ms` }}>
-                <div className="memory-image flex flex-col justify-between p-5" style={{ background: memory.color }}>
-                  <img src={memory.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                  <div className="memory-image-overlay absolute inset-0" aria-hidden="true" />
-                  <div className="relative z-[1] flex justify-between text-white/80">
-                    <span className="card-stamp">{memory.mark}</span>
-                    <span className="text-[10px] tracking-[.18em]">NO.{memory.id}</span>
-                  </div>
-                  <div className="relative z-[1]">
-                    <div className="mb-3 flex items-center gap-2 text-xs text-white/75"><span>📍</span>{memory.location}</div>
-                    <h3 className="serif text-2xl font-bold leading-tight text-white">{memory.title}</h3>
-                  </div>
+          <div className="container memory-grid">
+            {memoryCards.map((memory) => (
+              <article key={memory.id} className="memory-card" style={{ ['--card-accent' as string]: memory.color }}>
+                <div className="memory-image" style={{ backgroundImage: `url(${memory.img})`, backgroundColor: memory.color }}>
+                  <div className="image-badge">{memory.category}</div>
+                  <div className="card-stamp">NO.{memory.id}</div>
                 </div>
-                <div className="p-5">
-                  <div className="mb-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
+
+                <div className="memory-body">
+                  <div className="meta-row">
                     <span>{memory.era}</span>
-                    <span className="rounded-full bg-[hsl(var(--muted))] px-2 py-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[hsl(var(--foreground))]">{memory.category}</span>
+                    <span className="tag-pill">{memory.category}</span>
                   </div>
-                  <p className="text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{memory.excerpt}</p>
-                  <div className="mt-5 flex items-center justify-between text-sm text-[hsl(var(--primary))]">
+
+                  <h4>{memory.title}</h4>
+                  <p className="memory-location">📍 {memory.location}</p>
+                  <p className="memory-excerpt">{memory.excerpt}</p>
+                  <div className="story-row">
                     <span>{memory.storyteller}</span>
-                    <button type="button" className="btn-ghost text-xs" readOnly>閱讀故事</button>
+                    <button type="button" className="mini-btn">
+                      閱讀故事
+                    </button>
                   </div>
                 </div>
               </article>
             ))}
           </div>
-
-          <p className="mt-7 text-xs text-[hsl(var(--muted-foreground))]" data-sheet-key="memory_count">
-            {DEFAULT_CONTENT.memory_count} {MEMORY_CARDS.length}
-          </p>
         </section>
 
-        <section id="about" className="border-y border-[hsl(var(--border))] bg-[hsl(var(--muted)/.55)]">
-          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-[.9fr_1.1fr] lg:px-8">
-            <div>
-              <p className="section-kicker text-[hsl(var(--primary))]" data-sheet-key="about_kicker">{DEFAULT_CONTENT.about_kicker}</p>
-              <h2 className="serif mt-3 text-4xl font-black text-[hsl(var(--foreground))]" data-sheet-key="about_title">
-                <span dangerouslySetInnerHTML={{ __html: DEFAULT_CONTENT.about_title }} />
-              </h2>
+        <section id="about" className="about-section">
+          <div className="container about-grid">
+            <div className="about-copy">
+              <p className="section-kicker alt">WHY WE KEEP / 為什麼保存</p>
+              <h3 className="section-title">把「以前」交給以後。</h3>
             </div>
-            <div className="grid items-start gap-5 sm:grid-cols-2">
-              <div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]">
-                <p className="serif text-3xl font-bold leading-tight" data-sheet-key="about_title_2">每個人<br />都是收藏家。</p>
+
+            <div className="about-panels">
+              <div className="panel card-spotlight">
+                <div className="spotlight-icon">∎</div>
+                <p>每個人都是收藏家。</p>
               </div>
-              <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
-                <p className="eyebrow text-[hsl(var(--primary))]">1960 →</p>
-                <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">跨越不同年代，持續收錄中</p>
+
+              <div className="panel mini-panel">
+                <p className="mini-year">1960 →</p>
+                <span>跨越不同年代，持續收錄中</span>
               </div>
-              <div className="sm:col-span-2 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6">
-                <p className="text-base leading-relaxed text-[hsl(var(--muted-foreground))]" data-sheet-key="about_body">
-                  {DEFAULT_CONTENT.about_body}
+
+              <div className="panel text-panel">
+                <p>
+                  一個孩子記得的遊戲，常常也是一個家庭、一條街、甚至一整個時代的共同記憶。
+                  我們希望把那些不一定寫進教科書的日常，留成下一代可以回看的生活地圖。
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="responses" className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
-          <div className="mb-8">
-            <p className="section-kicker text-[hsl(var(--primary))]">Responses / 回饋</p>
-            <h2 className="serif mt-3 text-4xl font-black text-[hsl(var(--foreground))]" data-sheet-key="form_title">{DEFAULT_CONTENT.form_title}</h2>
+        <section id="responses" className="responses-section">
+          <div className="container">
+            <p className="section-kicker alt">Responses / 回饋</p>
+            <h3 className="section-title">最新回應</h3>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="container response-grid">
             {responseCards.map((item, index) => (
-              <div key={`${item.Name}-${index}`} className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 shadow-sm">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <strong className="text-base text-[hsl(var(--foreground))]">{item.Name || '匿名'}</strong>
-                  <span className="text-[10px] tracking-[.12em] text-[hsl(var(--muted-foreground))]">{prettyDate(item.Timestamp || item.timestamp || item.Date || item.date || '未提供時間')}</span>
+              <article key={`${item.name}-${index}`} className="response-card">
+                <div className="response-head">
+                  <strong>{item.name}</strong>
+                  <span>{item.time}</span>
                 </div>
-                <div className="mb-3 text-xs text-[hsl(var(--muted-foreground))]">{item.Email || item.email || '未提供信箱'}</div>
-                <p className="text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{item.Message || item.message || item.Comment || item.comment || '沒有內容'}</p>
-              </div>
+                <p className="response-email">{item.email}</p>
+                <p className="response-message">{item.message}</p>
+              </article>
             ))}
           </div>
         </section>
 
-        <section id="contact" className="mx-auto max-w-7xl px-5 pb-20 lg:px-8 lg:pb-28">
-          <div className="rounded-[1.5rem] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-8 shadow-sm">
-            <p className="section-kicker text-[hsl(var(--primary))]" data-sheet-key="contact_title">{DEFAULT_CONTENT.contact_title}</p>
-            <h2 className="serif mt-3 text-4xl font-black text-[hsl(var(--foreground))]" data-sheet-key="contact_title_primary">聯絡我們</h2>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[hsl(var(--muted-foreground))]" data-sheet-key="contact_body">
-              {DEFAULT_CONTENT.contact_body}
-            </p>
+        <section id="contact" className="cta-section">
+          <div className="container contact-box">
+            <div>
+              <p className="section-kicker alt">聯絡我們</p>
+              <h3 className="section-title">有一段想保存的童年故事嗎？</h3>
+            </div>
+            <button type="button" className="primary-btn" onClick={() => setLoginOpen(true)}>
+              進入管理入口
+            </button>
           </div>
         </section>
       </main>
 
-      <footer className="masthead">
-        <div className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20">
-          <div className="footer-grid">
-            <div>
-              <div className="flex items-center gap-3">
-                <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=400&q=80" alt="" className="h-10 w-10 rounded-full object-cover" />
-                <div>
-                  <p className="eyebrow text-[hsl(var(--accent))]">TAIWAN PLAY MEMORIES</p>
-                  <h3 className="text-xl font-bold text-white" data-sheet-key="footer_brand">{DEFAULT_CONTENT.footer_brand}</h3>
-                </div>
+      <footer className="site-footer">
+        <div className="container footer-grid">
+          <div>
+            <div className="brand-wrap footer-brand">
+              <div className="brand-mark">童</div>
+              <div>
+                <p className="eyebrow">Taiwan Play Memories</p>
+                <h4>台��玩耍記憶資料庫</h4>
               </div>
-              <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/70" data-sheet-key="footer_body">{DEFAULT_CONTENT.footer_body}</p>
             </div>
-
-            <div>
-              <p className="eyebrow text-[hsl(var(--accent))]" data-sheet-key="footer_explore">{DEFAULT_CONTENT.footer_explore}</p>
-              <ul className="mt-4 space-y-3 text-sm text-white/80">
-                <li><a href="#top">首頁</a></li>
-                <li><a href="#memories">記憶索引</a></li>
-                <li><a href="#about">關於資料庫</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <p className="eyebrow text-[hsl(var(--accent))]" data-sheet-key="footer_contribute">{DEFAULT_CONTENT.footer_contribute}</p>
-              <p className="mt-4 text-sm leading-relaxed text-white/70" data-sheet-key="footer_contribute_body">{DEFAULT_CONTENT.footer_contribute_body}</p>
-              <button type="button" className="btn-ghost mt-4 text-xs" onClick={() => setLoginOpen(true)} data-sheet-key="footer_cta">
-                {DEFAULT_CONTENT.footer_cta}
-              </button>
-            </div>
+            <p className="footer-copy">讓那些曾經一起玩過的事，在不同世代之間找到彼此。</p>
           </div>
 
-          <div className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
-            <span data-sheet-key="footer_copyright">{DEFAULT_CONTENT.footer_copyright}</span>
-            <span>© 2026 Taiwan Play Memories</span>
+          <div>
+            <p className="footer-title">EXPLORE</p>
+            <ul>
+              <li>首頁</li>
+              <li>記憶索引</li>
+              <li>關於資料庫</li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="footer-title">CONTRIBUTE</p>
+            <p className="footer-copy small">你也有一段想保存的童年嗎？</p>
+            <button type="button" className="footer-btn" onClick={() => setLoginOpen(true)}>
+              進入編輯入口 →
+            </button>
           </div>
         </div>
       </footer>
 
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-
-      {loading && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[hsl(var(--background)/.8)] backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-xl">
-            <div className="mb-4 h-4 w-24 rounded-full bg-[hsl(var(--muted))]" />
-            <div className="space-y-3">
-              <div className="h-4 w-full rounded-full bg-[hsl(var(--muted))]" />
-              <div className="h-4 w-5/6 rounded-full bg-[hsl(var(--muted))]" />
-              <div className="h-4 w-4/6 rounded-full bg-[hsl(var(--muted))]" />
+      {loginOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <div className="modal-head">
+              <div>
+                <p className="section-kicker alt dark">LOGIN / 登入</p>
+                <h4>管理入口</h4>
+              </div>
+              <button type="button" className="close-btn" onClick={() => setLoginOpen(false)}>
+                關閉
+              </button>
             </div>
+
+            <label className="field-label">
+              帳號
+              <input type="text" placeholder="請輸入帳號" defaultValue="admin" />
+            </label>
+
+            <label className="field-label">
+              密碼
+              <input type="password" placeholder="請輸入密碼" defaultValue="00000" />
+            </label>
+
+            <button
+              type="button"
+              className="primary-btn full"
+              onClick={() => {
+                setLoginOpen(false);
+                window.alert('登入模式已啟用（示範版本）');
+              }}
+            >
+              登入
+            </button>
           </div>
         </div>
       )}
