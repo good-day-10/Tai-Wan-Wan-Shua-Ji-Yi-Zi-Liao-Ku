@@ -558,6 +558,7 @@ function FavoritesSection({ memories, siteContent, favoriteIds, onOpen, onToggle
 }
 
 function ContributionForm({ auth }: { auth: ArchiveAuthState }) {
+  const queryClient = useQueryClient();
   const submitContribution = useSubmitMemoryContribution();
   const uploadUrl = useRequestArchiveImageUploadUrl();
   const [title, setTitle] = useState('');
@@ -595,6 +596,7 @@ function ContributionForm({ auth }: { auth: ArchiveAuthState }) {
     setReceipt('');
     try {
       const result = await submitContribution.mutateAsync({ data: { title: title.trim(), category, era: era.trim(), story: story.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(gender ? { gender } : {}), ...(imagePath ? { imagePath } : {}) } });
+      await queryClient.invalidateQueries({ queryKey: getGetPublicMemoryContributionsQueryKey() });
       setReceipt(`已收到「${title.trim()}」，目前狀態：待編輯者審核。編號 ${result.id}`);
       setTitle(''); setCategory(categories[1]); setEra(''); setStory(''); setName(''); setGender(''); setImagePath(''); setFileName('');
       event.currentTarget.reset();
@@ -1171,6 +1173,7 @@ function PendingContributionReview({ archive, onArchiveUpdated }: { archive: Arc
       onArchiveUpdated(normalizeArchive(updated));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetPendingMemoryContributionsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetPublicMemoryContributionsQueryKey() }),
         queryClient.invalidateQueries({ queryKey: getGetArchiveQueryKey() }),
       ]);
     } catch { setActionError('核准失敗，資料仍待審核。請重新載入後再試。'); }
@@ -1179,7 +1182,11 @@ function PendingContributionReview({ archive, onArchiveUpdated }: { archive: Arc
     setActionError('');
     try {
       await reject.mutateAsync({ submissionId: id });
-      await queryClient.invalidateQueries({ queryKey: getGetPendingMemoryContributionsQueryKey() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetPendingMemoryContributionsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetPublicMemoryContributionsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetMemoryResonanceQueryKey() }),
+      ]);
     } catch { setActionError('退回失敗，資料仍待審核。請稍後再試。'); }
   };
   return <section className="mb-8 rounded-3xl border border-[hsl(var(--secondary)/.45)] bg-[hsl(var(--secondary)/.08)] p-5 sm:p-7" aria-labelledby="pending-review-title" data-testid="pending-contribution-review">

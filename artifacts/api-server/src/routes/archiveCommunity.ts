@@ -131,6 +131,7 @@ router.post("/archive/submissions/:submissionId/reject", requireActiveSession, a
   const submissionId = Array.isArray(req.params.submissionId) ? req.params.submissionId[0] : req.params.submissionId;
   const [rejected] = await db.update(archiveSubmissionsTable).set({ status: "rejected" }).where(and(eq(archiveSubmissionsTable.id, submissionId), eq(archiveSubmissionsTable.status, "pending"))).returning({ id: archiveSubmissionsTable.id });
   if (!rejected) { res.status(404).json({ error: "Contribution not found" }); return; }
+  await db.delete(archiveReactionsTable).where(eq(archiveReactionsTable.memoryId, `pending-${submissionId}`));
   res.json(RejectMemoryContributionResponse.parse({ id: rejected.id, status: "rejected" }));
 });
 
