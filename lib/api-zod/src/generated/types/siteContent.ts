@@ -7,8 +7,10 @@
  */
 import type { CustomPage } from './customPage';
 import type { SiteTextBlock } from './siteTextBlock';
+import type { WonderScoutsContent } from './wonderScoutsContent';
 
 export interface SiteContent {
   blocks: SiteTextBlock[];
   pages?: CustomPage[];
+  wonderScouts?: WonderScoutsContent;
 }

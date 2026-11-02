@@ -67,7 +67,44 @@ export const GetArchiveResponse = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 })
 
@@ -124,7 +161,44 @@ export const SaveArchiveBody = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 }),
   "expectedVersion": zod.number().int().min(1).optional().describe('Server revision read by the editor before it started editing')
@@ -177,7 +251,44 @@ export const SaveArchiveResponse = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 })
 
@@ -233,7 +344,44 @@ export const GetArchiveCopyResponse = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 })
 
@@ -290,7 +438,44 @@ export const SaveArchiveCopyBody = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 }),
   "expectedVersion": zod.number().int().min(1).optional().describe('Server revision read by the editor before it started editing')
@@ -343,7 +528,44 @@ export const SaveArchiveCopyResponse = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 })
 
@@ -559,7 +781,44 @@ export const ApproveMemoryContributionResponse = zod.object({
   "width": zod.number(),
   "align": zod.string()
 }))
-})).optional()
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
 }).optional()
 })
 

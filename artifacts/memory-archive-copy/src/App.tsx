@@ -8,9 +8,10 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { createDefaultSiteContent as createSharedDefaultSiteContent, normalizeSiteContent as normalizeSharedSiteContent } from './site-content';
+import { createDefaultSiteContent as createSharedDefaultSiteContent, normalizeSiteContent as normalizeSharedSiteContent, type SiteContent as SharedSiteContent, type SiteContentInput as SharedSiteContentInput, type WonderScoutsContent } from './site-content';
 import { getDraggedPosition } from './editor-interactions';
 import WonderScoutsSite, { wonderScoutsMemories } from './wonder-scouts-site';
+import WonderScoutsContentEditor from './wonder-scouts-content-editor';
 
 type Memory = {
   id: string;
@@ -47,7 +48,7 @@ type CustomPage = {
   blocks: SiteTextBlock[];
 };
 
-type SiteContent = { blocks: SiteTextBlock[]; pages: CustomPage[] };
+type SiteContent = SharedSiteContent & { pages: CustomPage[] };
 type ArchiveData = { version?: number; introduction: string; memories: Memory[]; siteContent: SiteContent };
 type SharedArchiveStatus = 'loading' | 'ready' | 'error';
 
@@ -122,7 +123,7 @@ function createDefaultSiteContent(): SiteContent {
 
 type SiteTextBlockInput = Omit<SiteTextBlock, 'align'> & { align: string };
 type CustomPageInput = { id: string; title: string; slug: string; backgroundImage?: string; blocks?: SiteTextBlockInput[] };
-type SiteContentInput = { blocks?: SiteTextBlockInput[]; pages?: CustomPageInput[] };
+type SiteContentInput = SharedSiteContentInput & { pages?: CustomPageInput[] };
 
 function normalizeBlocks(input: SiteTextBlockInput[] = []): SiteTextBlock[] {
   return input.map((block) => ({
@@ -783,7 +784,7 @@ function CustomPagesEditor({ pages, onChange }: { pages: CustomPage[]; onChange:
       <p className="mt-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">新增的主題會自動出現在右上角三條線的選單，點擊後會開啟獨立頁面。</p>
       <div className="mt-5 space-y-1">{pages.length ? pages.map((page) => <button key={page.id} type="button" onClick={() => setSelectedId(page.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ${selected?.id === page.id ? 'bg-[hsl(var(--primary))] text-white' : 'hover:bg-[hsl(var(--muted))]'}`}><span className="h-8 w-8 shrink-0 rounded-lg bg-[hsl(var(--secondary)/.2)]" style={page.backgroundImage ? { backgroundImage: `url("${page.backgroundImage}")`, backgroundSize: 'cover' } : undefined} /><span className="min-w-0 truncate text-sm font-semibold">{page.title}</span></button>) : <div className="rounded-xl bg-[hsl(var(--muted))] px-3 py-4 text-center text-xs text-[hsl(var(--muted-foreground))]">還沒有自訂頁面</div>}</div>
     </aside>
-    {selected ? <main className="min-w-0"><div className="mb-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="eyebrow text-[hsl(var(--primary))]">PAGE SETTINGS / 頁面設定</p><h2 className="serif mt-2 text-3xl font-bold">{selected.title}</h2></div><button type="button" onClick={removePage} className="btn-ghost text-[hsl(var(--destructive))]"><Trash2 size={16} />刪除頁面</button></div><label className="mt-5 block text-sm font-semibold">選單顯示名稱<input value={selected.title} onChange={(event) => updatePage({ title: event.target.value })} className="input-archive mt-2" placeholder="例如：我們的理念" /></label><p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">頁面網址：/page/{selected.slug}</p><PageBackgroundField value={selected.backgroundImage} onChange={(backgroundImage) => updatePage({ backgroundImage })} /></div><PageLayoutEditor key={selected.id} siteContent={{ blocks: selected.blocks, pages: [] }} onChange={(content) => updatePage({ blocks: content.blocks })} /></main> : <main className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><LayoutTemplate className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">建立第一個自訂主題</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">例如「我們的理念」、「參與方式」或「合作夥伴」。</p><button type="button" onClick={addPage} className="btn-primary mt-5"><Plus size={15} />建立頁面</button></div></main>}
+    {selected ? <main className="min-w-0"><div className="mb-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="eyebrow text-[hsl(var(--primary))]">PAGE SETTINGS / 頁面設定</p><h2 className="serif mt-2 text-3xl font-bold">{selected.title}</h2></div><button type="button" onClick={removePage} className="btn-ghost text-[hsl(var(--destructive))]"><Trash2 size={16} />刪除頁面</button></div><label className="mt-5 block text-sm font-semibold">選單顯示名稱<input value={selected.title} onChange={(event) => updatePage({ title: event.target.value })} className="input-archive mt-2" placeholder="例如：我們的理念" /></label><p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">頁面網址：/page/{selected.slug}</p><PageBackgroundField value={selected.backgroundImage} onChange={(backgroundImage) => updatePage({ backgroundImage })} /></div><PageLayoutEditor key={selected.id} siteContent={{ ...createDefaultSiteContent(), blocks: selected.blocks, pages: [] }} onChange={(content) => updatePage({ blocks: content.blocks })} /></main> : <main className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] p-8 text-center"><div><LayoutTemplate className="mx-auto text-[hsl(var(--secondary))]" size={34} /><h2 className="serif mt-5 text-2xl font-bold">建立第一個自訂主題</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">例如「我們的理念」、「參與方式」或「合作夥伴」。</p><button type="button" onClick={addPage} className="btn-primary mt-5"><Plus size={15} />建立頁面</button></div></main>}
   </div>;
 }
 
@@ -811,7 +812,7 @@ function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive
   const [draft, setDraft] = useState<ArchiveData>(() => structuredClone(archive));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [editorTab, setEditorTab] = useState<'memories' | 'page' | 'pages'>('memories');
+  const [editorTab, setEditorTab] = useState<'memories' | 'page' | 'pages' | 'site-data'>('memories');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -904,8 +905,8 @@ function Editor({ archive, onSave, onCancel, onLock, onReloadLatest }: { archive
         </div>
           {saveError && <div className="mt-3 rounded-xl border border-[hsl(var(--destructive)/.35)] bg-[hsl(var(--destructive)/.08)] px-3 py-2 text-sm leading-relaxed text-[hsl(var(--destructive))]" data-testid="save-error-editor" role="alert"><p>{saveError}</p>{saveConflict && <button type="button" disabled={saving || reloadingLatest} onClick={reloadLatest} className="btn-outline mt-3 min-h-10 px-3 py-2 text-sm text-[hsl(var(--destructive))] disabled:cursor-wait disabled:opacity-60" data-testid="button-reload-latest"><RefreshCw size={15} className={reloadingLatest ? 'animate-spin' : undefined} />{reloadingLatest ? '重新載入中…' : '重新載入最新資料'}</button>}</div>}
       </div>
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button></div>
-      {editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-[hsl(var(--border))] pb-4"><button type="button" onClick={() => setEditorTab('memories')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'memories' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-memories">故事收藏</button><button type="button" onClick={() => setEditorTab('page')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'page' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-page"><LayoutTemplate size={15} className="mr-1 inline-block" />首頁文字與排版</button><button type="button" onClick={() => setEditorTab('pages')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'pages' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-pages"><Layers3 size={15} className="mr-1 inline-block" />自訂主題頁面</button><button type="button" onClick={() => setEditorTab('site-data')} className={`rounded-full px-4 py-2 text-sm font-semibold ${editorTab === 'site-data' ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`} data-testid="button-editor-tab-site-data">影片、合作與捐款</button></div>
+      {editorTab === 'site-data' ? <WonderScoutsContentEditor content={draft.siteContent.wonderScouts} onChange={(wonderScouts: WonderScoutsContent) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, wonderScouts } }))} /> : editorTab === 'pages' ? <CustomPagesEditor pages={draft.siteContent.pages} onChange={(pages) => setDraft((current) => ({ ...current, siteContent: { ...current.siteContent, pages } }))} /> : editorTab === 'page' ? <PageLayoutEditor siteContent={draft.siteContent} onChange={(siteContent) => setDraft((current) => ({ ...current, siteContent }))} /> : <div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr]">
         <aside>
           <div className="rounded-2xl bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]">
             <p className="eyebrow text-[hsl(var(--accent))]">ARCHIVE SETTINGS</p><h2 className="serif mt-3 text-2xl font-bold">資料庫介紹</h2>

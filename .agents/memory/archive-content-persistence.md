@@ -9,6 +9,12 @@ Persisted page content is optional for legacy archive rows. Visitor rendering mu
 
 **How to apply:** Keep API responses backward-compatible and test both legacy fallback and two independent reads after a save.
 
+Site-specific structured content belongs in its own typed branch of shared `siteContent`, not serialized into rich-text blocks. Normalize missing legacy branches from defaults, but preserve explicitly saved empty lists so an editor can intentionally remove every item.
+
+**Why:** Videos, feedback, and service lists need structured fields for safe editing and API validation; treating empty as missing would make deletions appear to undo themselves.
+
+**How to apply:** Extend the OpenAPI contract when adding a content collection, regenerate clients and validators, and cover both legacy fallback and saved empty collections.
+
 Integration cleanup must omit `siteContent` when the original legacy response omitted it; sending an empty object violates the save contract because `blocks` is required whenever `siteContent` is present.
 
 **Why:** A legacy row can have a null content column, while the API schema intentionally requires a complete block list for any newly supplied content object.

@@ -44,9 +44,60 @@ export interface CustomPage {
   blocks: SiteTextBlock[];
 }
 
+export interface WonderScoutsVideo {
+  place: string;
+  title: string;
+  youtubeId: string;
+  image: string;
+}
+
+export interface WonderScoutsFeedback {
+  quote: string;
+  by: string;
+}
+
+export interface WonderScoutsService {
+  number: string;
+  title: string;
+  body: string;
+  tags: string;
+}
+
+export interface WonderScoutsJoinStep {
+  number: string;
+  title: string;
+  body: string;
+}
+
+export interface WonderScoutsDonation {
+  organization: string;
+  intro: string;
+  url: string;
+  purposes: string[];
+}
+
+export interface WonderScoutsLinks {
+  partnershipForm: string;
+  joinForm: string;
+  resultsVideo: string;
+  digitalTour: string;
+}
+
+export interface WonderScoutsContent {
+  videos: WonderScoutsVideo[];
+  feedback: WonderScoutsFeedback[];
+  partnershipBenefits: string[];
+  squadBenefits: string[];
+  services: WonderScoutsService[];
+  joinSteps: WonderScoutsJoinStep[];
+  donation: WonderScoutsDonation;
+  links: WonderScoutsLinks;
+}
+
 export interface SiteContent {
   blocks: SiteTextBlock[];
   pages?: CustomPage[];
+  wonderScouts?: WonderScoutsContent;
 }
 
 export interface Archive {

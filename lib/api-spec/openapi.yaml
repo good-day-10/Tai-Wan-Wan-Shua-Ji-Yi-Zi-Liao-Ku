@@ -495,8 +495,110 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CustomPage"
+        wonderScouts:
+          $ref: "#/components/schemas/WonderScoutsContent"
       required:
         - blocks
+    WonderScoutsVideo:
+      type: object
+      properties:
+        place:
+          type: string
+        title:
+          type: string
+        youtubeId:
+          type: string
+        image:
+          type: string
+      required: [place, title, youtubeId, image]
+    WonderScoutsFeedback:
+      type: object
+      properties:
+        quote:
+          type: string
+        by:
+          type: string
+      required: [quote, by]
+    WonderScoutsService:
+      type: object
+      properties:
+        number:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        tags:
+          type: string
+      required: [number, title, body, tags]
+    WonderScoutsJoinStep:
+      type: object
+      properties:
+        number:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+      required: [number, title, body]
+    WonderScoutsDonation:
+      type: object
+      properties:
+        organization:
+          type: string
+        intro:
+          type: string
+        url:
+          type: string
+        purposes:
+          type: array
+          items:
+            type: string
+      required: [organization, intro, url, purposes]
+    WonderScoutsLinks:
+      type: object
+      properties:
+        partnershipForm:
+          type: string
+        joinForm:
+          type: string
+        resultsVideo:
+          type: string
+        digitalTour:
+          type: string
+      required: [partnershipForm, joinForm, resultsVideo, digitalTour]
+    WonderScoutsContent:
+      type: object
+      properties:
+        videos:
+          type: array
+          items:
+            $ref: "#/components/schemas/WonderScoutsVideo"
+        feedback:
+          type: array
+          items:
+            $ref: "#/components/schemas/WonderScoutsFeedback"
+        partnershipBenefits:
+          type: array
+          items:
+            type: string
+        squadBenefits:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/WonderScoutsService"
+        joinSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/WonderScoutsJoinStep"
+        donation:
+          $ref: "#/components/schemas/WonderScoutsDonation"
+        links:
+          $ref: "#/components/schemas/WonderScoutsLinks"
+      required: [videos, feedback, partnershipBenefits, squadBenefits, services, joinSteps, donation, links]
     MemoryResonance:
       type: object
       properties:
