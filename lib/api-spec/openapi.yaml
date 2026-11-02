@@ -168,6 +168,18 @@ paths:
           description: Invalid reaction
         "404":
           description: Memory not found
+  /archive/submissions/public:
+    get:
+      operationId: getPublicMemoryContributions
+      tags: [archive]
+      summary: List pending public memory contributions
+      responses:
+        "200":
+          description: Contributions published with a pending review label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMemorySubmissionList"
   /archive/submissions:
     post:
       operationId: submitMemoryContribution
@@ -567,6 +579,26 @@ components:
           type: string
           enum: [pending, rejected]
       required: [id, status]
+    PublicMemorySubmission:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        era:
+          type: string
+        story:
+          type: string
+        imagePath:
+          type: ["string", "null"]
+      required: [id, title, category, era, story]
+    PublicMemorySubmissionList:
+      type: array
+      items:
+        $ref: "#/components/schemas/PublicMemorySubmission"
     ApproveMemoryContributionInput:
       type: object
       properties:
