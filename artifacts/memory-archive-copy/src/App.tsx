@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getArchiveCopy, getArchiveCopyEditorStatus, saveArchiveCopy, unlockArchiveCopyEditor } from '@workspace/api-client-react';
+import { getArchiveCopy, getArchiveCopyEditorStatus, migrateArchiveCopy, saveArchiveCopy, unlockArchiveCopyEditor } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -64,6 +64,10 @@ function createArchiveConflictError(): Error {
 
 function isCreatedArchiveConflictError(error: unknown): boolean {
   return error instanceof Error && error.name === 'ArchiveConflictError';
+}
+
+function hasPersistedMigrationMarker(siteContent?: SiteContentInput): boolean {
+  return siteContent?.blocks?.some((block) => block.id === 'ws.migration') === true;
 }
 
 const defaultSiteBlocks: SiteTextBlock[] = [
@@ -413,7 +417,7 @@ function MemoryModal({ memory, siteContent, onClose }: { memory: Memory; siteCon
   </div>;
 }
 
-function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: () => void }) {
+function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void | Promise<void>; onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -438,15 +442,54 @@ function PasswordGate({ onUnlock, onClose }: { onUnlock: () => void; onClose: ()
     setError('');
     try {
       await unlockArchiveCopyEditor({ editorPassword: isOwner ? '' : password });
-      onUnlock();
     } catch {
       setError('密碼錯誤，請再試一次。');
       setPassword('');
+      setSubmitting(false);
+      return;
+    }
+    try {
+      await onUnlock();
+    } catch (unlockError) {
+      setError(unlockError instanceof Error ? unlockError.message : '共享資料搬遷未完成，請重新載入後再試。');
     } finally {
       setSubmitting(false);
     }
   };
-  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title"><div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10"><div className="flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div><button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button></div><p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p><h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2>{!isLoaded || checkingRole ? <p className="mt-7 text-sm text-[hsl(var(--muted-foreground))]">正在確認帳號權限…</p> : !isSignedIn ? <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">請先登入資料庫帳號，登入後才能進入編輯模式。</p><a href={`${base}/sign-in`} className="btn-primary mt-6 w-full" data-testid="link-gate-sign-in">先登入再編輯 <ArrowRight size={16} /></a></> : isOwner ? <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">已確認為資料庫擁有人，可以直接進入編輯模式。</p><form onSubmit={submit} className="mt-7"><button type="submit" disabled={submitting} className="btn-primary w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-owner-access">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button></form></> : <><p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">登入已確認。輸入編輯密碼後，即可整理故事、修改介紹或新增一則收藏。</p><form onSubmit={submit} className="mt-7"><label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label><input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" placeholder="請輸入編輯密碼" className="input-archive mt-2 text-center text-xl tracking-[.2em]" autoFocus data-testid="input-editor-password" />{error && <p className="mt-2 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}<button type="submit" disabled={submitting || password.length === 0} className="btn-primary mt-5 w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-password">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button></form></>}<p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p></div></div>;
+  return <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-7 shadow-2xl sm:p-10">
+      <div className="flex items-start justify-between">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><LockKeyhole size={21} /></div>
+        <button onClick={onClose} className="btn-ghost" aria-label="關閉編輯入口" data-testid="button-close-gate"><X size={19} /></button>
+      </div>
+      <p className="eyebrow mt-8 text-[hsl(var(--primary))]">EDITOR ACCESS / 編輯入口</p>
+      <h2 id="gate-title" className="serif mt-3 text-3xl font-bold">想替這座資料庫<br />放進一段新的記憶嗎？</h2>
+      {!isLoaded || checkingRole
+        ? <p className="mt-7 text-sm text-[hsl(var(--muted-foreground))]">正在確認帳號權限…</p>
+        : !isSignedIn
+          ? <>
+            <p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">請先登入資料庫帳號，登入後才能進入編輯模式。</p>
+            <a href={`${base}/sign-in`} className="btn-primary mt-6 w-full" data-testid="link-gate-sign-in">先登入再編輯 <ArrowRight size={16} /></a>
+          </>
+          : isOwner
+            ? <>
+              <p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">已確認為資料庫擁有人，可以直接進入編輯模式。</p>
+              <form onSubmit={submit} className="mt-7">
+                <button type="submit" disabled={submitting} className="btn-primary w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-owner-access">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button>
+              </form>
+            </>
+            : <>
+              <p className="mt-4 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">登入已確認。輸入編輯密碼後，即可整理故事、修改介紹或新增一則收藏。</p>
+              <form onSubmit={submit} className="mt-7">
+                <label htmlFor="archive-password" className="text-sm font-semibold">編輯密碼</label>
+                <input id="archive-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} type="password" placeholder="請輸入編輯密碼" className="input-archive mt-2 text-center text-xl tracking-[.2em]" autoFocus data-testid="input-editor-password" />
+                <button type="submit" disabled={submitting || password.length === 0} className="btn-primary mt-5 w-full disabled:cursor-wait disabled:opacity-60" data-testid="button-submit-password">{submitting ? '確認中…' : '進入編輯模式'} <ArrowRight size={16} /></button>
+              </form>
+            </>}
+      {error && <p className="mt-3 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="text-password-error">{error}</p>}
+      <p className="mt-5 text-center text-xs text-[hsl(var(--muted-foreground))]"><ShieldCheck className="mr-1 inline-block" size={13} />編輯內容會同步到共享資料庫</p>
+    </div>
+  </div>;
 }
 
 function imageToDataUrl(file: File): Promise<string> {
@@ -955,7 +998,7 @@ function Home() {
   };
   useEffect(() => {
     let active = true;
-    getArchiveCopy().then((sharedArchive) => {
+    getArchiveCopy({ cache: 'no-store' }).then((sharedArchive) => {
       if (!active) return;
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
@@ -1010,7 +1053,11 @@ function Home() {
       });
       const normalized = normalizeArchive(sharedArchive);
       setArchive(normalized);
-      localStorage.setItem('taiwan-memory-archive-copy', JSON.stringify(normalized));
+      try {
+        localStorage.setItem('taiwan-memory-archive-copy', JSON.stringify(normalized));
+      } catch {
+        // The shared response remains authoritative when local storage is unavailable.
+      }
       setEditing(false);
     } catch (error) {
       if (isArchiveConflictError(error)) {
@@ -1021,12 +1068,56 @@ function Home() {
       throw new Error('Shared archive save failed');
     }
   };
+  const enterEditor = async () => {
+    let latestArchive;
+    try {
+      latestArchive = await getArchiveCopy({ cache: 'no-store' });
+    } catch {
+      updateSharedStatus('error');
+      throw new Error('無法確認共享資料的最新版本，尚未執行搬遷。請重新載入後再試。');
+    }
+    const latest = normalizeArchive(latestArchive);
+    setArchive(latest);
+    updateSharedStatus('ready');
+    try {
+      localStorage.setItem('taiwan-memory-archive-copy', JSON.stringify(latest));
+    } catch {
+      // The shared response remains authoritative when local storage is unavailable.
+    }
+
+    if (!hasPersistedMigrationMarker(latestArchive.siteContent as SiteContentInput | undefined)) {
+      if (latestArchive.version !== 1) {
+        throw new Error('共享資料已經有新版本，為避免覆蓋編輯內容，這次未執行搬遷。請確認最新資料後再進入編輯。');
+      }
+      try {
+        const sharedArchive = await migrateArchiveCopy({
+          archive: latest,
+          expectedVersion: latestArchive.version,
+        });
+        const normalized = normalizeArchive(sharedArchive);
+        setArchive(normalized);
+        try {
+          localStorage.setItem('taiwan-memory-archive-copy', JSON.stringify(normalized));
+        } catch {
+          // The shared response remains authoritative when local storage is unavailable.
+        }
+      } catch (error) {
+        if (isArchiveConflictError(error)) {
+          await reloadLatestArchive();
+          throw new Error('共享資料已由其他編輯者更新，這次未執行搬遷。已重新載入最新資料，請重新進入編輯。');
+        }
+        throw new Error('少年導覽隊內容搬遷失敗，原有共享資料未變更。請檢查連線後再試。');
+      }
+    }
+    setGateOpen(false);
+    setEditing(true);
+  };
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
   if (pageSlug && !activePage) return <NotFound />;
-  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</>;
-  return <div><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><WonderScoutsSite memories={archive.memories} siteContent={archive.siteContent} authControls={<AuthControls />} onOpen={setDetail} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={() => { setGateOpen(false); setEditing(true); }} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</div>;
+  if (activePage) return <><CustomPageView page={activePage} siteContent={archive.siteContent} onEdit={() => setGateOpen(true)} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={enterEditor} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</>;
+  return <div><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} /><WonderScoutsSite memories={archive.memories} siteContent={archive.siteContent} authControls={<AuthControls />} onOpen={setDetail} onEdit={() => setGateOpen(true)} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate onClose={() => setGateOpen(false)} onUnlock={enterEditor} />}{editing && <Editor archive={archive} onSave={saveArchive} onCancel={() => setEditing(false)} onLock={() => setEditing(false)} onReloadLatest={reloadLatestArchive} />}</div>;
 }
 
 function Router() {

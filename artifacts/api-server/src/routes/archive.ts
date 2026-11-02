@@ -4,6 +4,8 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { db, archiveTable } from "@workspace/db";
 import {
   GetArchiveResponse,
+  MigrateArchiveCopyBody,
+  MigrateArchiveCopyResponse,
   SaveArchiveBody,
   SaveArchiveResponse,
   UnlockEditorBody,
@@ -13,11 +15,25 @@ import integrationTestSafetyRouter from "./archiveIntegrationTestSafety";
 const router: IRouter = Router();
 const ARCHIVE_ID = "main";
 const COPY_ARCHIVE_ID = "memory-archive-copy";
+const COPY_MIGRATION_MARKER_ID = "ws.migration";
+const COPY_MIGRATION_VERSION = "wonder-scouts-2026-10";
 const EDITOR_PASSWORD = process.env.ARCHIVE_EDITOR_PASSWORD;
 const OWNER_EMAIL = process.env.ARCHIVE_OWNER_EMAIL?.trim().toLowerCase();
 const EDITOR_COOKIE = "archive_editor_access";
 const COPY_EDITOR_COOKIE = "archive_copy_editor_access";
 const EDITOR_COOKIE_MAX_AGE = 60 * 60 * 1000;
+
+function hasCopyMigrationMarker(siteContent: unknown): boolean {
+  if (!siteContent || typeof siteContent !== "object") return false;
+  const blocks = (siteContent as { blocks?: unknown }).blocks;
+  return Array.isArray(blocks)
+    && blocks.some((block) => (
+      Boolean(block)
+      && typeof block === "object"
+      && "id" in block
+      && block.id === COPY_MIGRATION_MARKER_ID
+    ));
+}
 
 function shouldSimulateClerkSessionLookupFailure(req: Request): boolean {
   return process.env.NODE_ENV !== "production"
@@ -144,6 +160,99 @@ router.get("/archive-copy", async (_req, res): Promise<void> => {
   }
 
   res.json(parsed.data);
+});
+
+router.post("/archive-copy/migrate", requireActiveClerkSession, async (req, res): Promise<void> => {
+  if (!hasCopyEditorAccess(req)) {
+    res.status(401).json({ error: "Editor access required" });
+    return;
+  }
+
+  const parsed = MigrateArchiveCopyBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { archive, expectedVersion } = parsed.data;
+  if (
+    !archive.siteContent?.blocks.some(
+      (block) => block.id === COPY_MIGRATION_MARKER_ID && block.html === COPY_MIGRATION_VERSION,
+    )
+  ) {
+    res.status(400).json({ error: "Migration marker is missing or invalid" });
+    return;
+  }
+
+  const [current] = await db
+    .select()
+    .from(archiveTable)
+    .where(eq(archiveTable.id, COPY_ARCHIVE_ID))
+    .limit(1);
+
+  if (!current) {
+    res.status(409).json({ error: "Archive copy is not initialized; reload before migrating" });
+    return;
+  }
+
+  const currentResponse = () => MigrateArchiveCopyResponse.parse({
+    version: current.revision,
+    introduction: current.introduction,
+    memories: current.memories,
+    siteContent: current.siteContent ?? undefined,
+  });
+
+  if (hasCopyMigrationMarker(current.siteContent)) {
+    res.json(currentResponse());
+    return;
+  }
+
+  if (expectedVersion !== 1 || current.revision !== 1) {
+    res.status(409).json({ error: "Archive copy has changed; migration was not applied" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(archiveTable)
+    .set({
+      introduction: archive.introduction,
+      memories: archive.memories,
+      siteContent: archive.siteContent ?? null,
+      revision: sql<number>`${archiveTable.revision} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(and(
+      eq(archiveTable.id, COPY_ARCHIVE_ID),
+      eq(archiveTable.revision, expectedVersion),
+      sql`NOT (COALESCE(${archiveTable.siteContent}->'blocks', '[]'::jsonb) @> ${JSON.stringify([{ id: COPY_MIGRATION_MARKER_ID }])}::jsonb)`,
+    ))
+    .returning();
+
+  if (!updated) {
+    const [latest] = await db
+      .select()
+      .from(archiveTable)
+      .where(eq(archiveTable.id, COPY_ARCHIVE_ID))
+      .limit(1);
+    if (latest && hasCopyMigrationMarker(latest.siteContent)) {
+      res.json(MigrateArchiveCopyResponse.parse({
+        version: latest.revision,
+        introduction: latest.introduction,
+        memories: latest.memories,
+        siteContent: latest.siteContent,
+      }));
+      return;
+    }
+    res.status(409).json({ error: "Archive copy has changed; migration was not applied" });
+    return;
+  }
+
+  res.json(MigrateArchiveCopyResponse.parse({
+    version: updated.revision,
+    introduction: updated.introduction,
+    memories: updated.memories,
+    siteContent: updated.siteContent ?? undefined,
+  }));
 });
 
 router.get("/editor/status", async (req, res): Promise<void> => {

@@ -571,6 +571,191 @@ export const SaveArchiveCopyResponse = zod.object({
 
 
 /**
+ * Applies the site migration only to the untouched initial revision, using optimistic concurrency.
+ * @summary Migrate the independent archive copy once
+ */
+
+
+
+
+export const MigrateArchiveCopyBody = zod.object({
+  "archive": zod.object({
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
+  "introduction": zod.string(),
+  "memories": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "location": zod.string(),
+  "era": zod.string(),
+  "category": zod.string(),
+  "storyteller": zod.string(),
+  "excerpt": zod.string(),
+  "story": zod.string(),
+  "storyHtml": zod.string().optional(),
+  "color": zod.string(),
+  "mark": zod.string(),
+  "image": zod.string().optional(),
+  "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+})),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "backgroundImage": zod.string().optional(),
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+}))
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
+}).optional()
+}),
+  "expectedVersion": zod.number().int().min(1).optional().describe('Server revision read by the editor before it started editing')
+})
+
+
+
+
+export const MigrateArchiveCopyResponse = zod.object({
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
+  "introduction": zod.string(),
+  "memories": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "location": zod.string(),
+  "era": zod.string(),
+  "category": zod.string(),
+  "storyteller": zod.string(),
+  "excerpt": zod.string(),
+  "story": zod.string(),
+  "storyHtml": zod.string().optional(),
+  "color": zod.string(),
+  "mark": zod.string(),
+  "image": zod.string().optional(),
+  "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+})),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "backgroundImage": zod.string().optional(),
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+}))
+})).optional(),
+  "wonderScouts": zod.object({
+  "videos": zod.array(zod.object({
+  "place": zod.string(),
+  "title": zod.string(),
+  "youtubeId": zod.string(),
+  "image": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "quote": zod.string(),
+  "by": zod.string()
+})),
+  "partnershipBenefits": zod.array(zod.string()),
+  "squadBenefits": zod.array(zod.string()),
+  "services": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "tags": zod.string()
+})),
+  "joinSteps": zod.array(zod.object({
+  "number": zod.string(),
+  "title": zod.string(),
+  "body": zod.string()
+})),
+  "donation": zod.object({
+  "organization": zod.string(),
+  "intro": zod.string(),
+  "url": zod.string(),
+  "purposes": zod.array(zod.string())
+}),
+  "links": zod.object({
+  "partnershipForm": zod.string(),
+  "joinForm": zod.string(),
+  "resultsVideo": zod.string(),
+  "digitalTour": zod.string()
+})
+}).optional()
+}).optional()
+})
+
+
+/**
  * @summary Get memory resonance counts and visitor state
  */
 export const getMemoryResonanceQueryVisitorIdMin = 8;
@@ -581,6 +766,7 @@ export const getMemoryResonanceQueryVisitorIdMax = 80;
 export const GetMemoryResonanceQueryParams = zod.object({
   "visitorId": zod.coerce.string().min(getMemoryResonanceQueryVisitorIdMin).max(getMemoryResonanceQueryVisitorIdMax).optional()
 })
+
 
 export const getMemoryResonanceResponseCountMin = 0;
 

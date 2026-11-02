@@ -101,6 +101,31 @@ paths:
           description: Authentication or editor access required
         "409":
           description: Archive copy was changed by another editor
+  /archive-copy/migrate:
+    post:
+      operationId: migrateArchiveCopy
+      tags: [archive]
+      summary: Migrate the independent archive copy once
+      description: Applies the site migration only to the untouched initial revision, using optimistic concurrency.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveArchiveRequest"
+      responses:
+        "200":
+          description: Migrated independent archive copy, or the already-migrated copy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archive"
+        "400":
+          description: Invalid migration data
+        "401":
+          description: Authentication or editor access required
+        "409":
+          description: Archive copy has changed and cannot be migrated safely
   /archive/resonance:
     get:
       operationId: getMemoryResonance

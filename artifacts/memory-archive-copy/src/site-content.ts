@@ -13,6 +13,8 @@ export type SiteContent = { blocks: SiteTextBlock[]; wonderScouts: WonderScoutsC
 
 export type SiteTextBlockInput = Omit<SiteTextBlock, 'align'> & { align: string };
 
+export const ARCHIVE_COPY_MIGRATION_VERSION = 'wonder-scouts-2026-10';
+
 export type WonderScoutsVideo = { place: string; title: string; youtubeId: string; image: string };
 export type WonderScoutsFeedback = { quote: string; by: string };
 export type WonderScoutsService = { number: string; title: string; body: string; tags: string };
@@ -145,7 +147,7 @@ export const defaultSiteBlocks: SiteTextBlock[] = [
   { id: 'footer.contributeCta', label: '頁尾編輯連結', section: '頁尾', html: '進入編輯入口　→', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.copyright', label: '頁尾版權文字', section: '頁尾', html: '一個開放給所有人的家庭記憶計畫', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'footer.copyrightMark', label: '頁尾版權標記', section: '頁尾', html: '© 少年導覽隊', x: 0, y: 0, width: 100, align: 'right' },
-  { id: 'ws.migration', label: '搬遷版本標記', section: '網站設定', html: 'wonder-scouts-2026-10', x: 0, y: 0, width: 100, align: 'left' },
+  { id: 'ws.migration', label: '搬遷版本標記', section: '網站設定', html: ARCHIVE_COPY_MIGRATION_VERSION, x: 0, y: 0, width: 100, align: 'left' },
   { id: 'ws.hero.title', label: '首頁主標題', section: '主視覺', html: '少年導覽隊', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'ws.hero.body', label: '首頁介紹', section: '主視覺', html: '我們是台灣的孩子、是一群中小學生；我們走進古蹟、研究歷史、探索自然科學與天文生物，用青少年的視角設計沉浸式體驗，為每一個有故事的地方注入新的生命力。', x: 0, y: 0, width: 100, align: 'left' },
   { id: 'ws.about.0.title', label: '從聽歷史到走進歷史：標題', section: '關於我們', html: '從「聽歷史」到「走進歷史」', x: 0, y: 0, width: 100, align: 'left' },

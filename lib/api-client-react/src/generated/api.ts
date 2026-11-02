@@ -475,6 +475,95 @@ export const useSaveArchiveCopy = <TError = ErrorType<void>,
       return useMutation(getSaveArchiveCopyMutationOptions(options));
     }
 
+export const getMigrateArchiveCopyUrl = () => {
+
+
+
+
+  return `/api/archive-copy/migrate`
+}
+
+/**
+ * Applies the site migration only to the untouched initial revision, using optimistic concurrency.
+ * @summary Migrate the independent archive copy once
+ */
+export const migrateArchiveCopy = async (saveArchiveRequest: SaveArchiveRequest, options?: Parameters<typeof customFetch>[1]): Promise<Archive> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Archive>(getMigrateArchiveCopyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveArchiveRequest)
+  }
+);}
+
+
+
+
+
+export const getMigrateArchiveCopyMutationKey = () => ['migrateArchiveCopy'] as const;
+
+export const getMigrateArchiveCopyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof migrateArchiveCopy>>, TError,MigrateArchiveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof migrateArchiveCopy>>, TError,MigrateArchiveCopyMutationVariables, TContext> => {
+
+const mutationKey = getMigrateArchiveCopyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof migrateArchiveCopy>>, MigrateArchiveCopyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  migrateArchiveCopy(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MigrateArchiveCopyMutationResult = NonNullable<Awaited<ReturnType<typeof migrateArchiveCopy>>>
+    export type MigrateArchiveCopyMutationBody = BodyType<SaveArchiveRequest>
+    export type MigrateArchiveCopyMutationError = ErrorType<void>
+    export type MigrateArchiveCopyMutationVariables = {data: BodyType<SaveArchiveRequest>}
+
+    /**
+ * @summary Migrate the independent archive copy once
+ */
+export const useMigrateArchiveCopy = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof migrateArchiveCopy>>, TError,MigrateArchiveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof migrateArchiveCopy>>,
+        TError,
+        MigrateArchiveCopyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMigrateArchiveCopyMutationOptions(options));
+    }
+
 export const getGetMemoryResonanceUrl = (params?: GetMemoryResonanceParams,) => {
   const normalizedParams = new URLSearchParams();
 

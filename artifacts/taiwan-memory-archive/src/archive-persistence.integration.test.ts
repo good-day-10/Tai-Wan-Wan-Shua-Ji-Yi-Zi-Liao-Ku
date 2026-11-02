@@ -123,6 +123,13 @@ async function requestArchiveCopyWithStatus(
   return requestJson('/archive-copy', options, cookie);
 }
 
+async function requestArchiveCopyMigration(
+  options?: RequestInit,
+  cookie: string | null | undefined = copyEditorCookie,
+): Promise<{ response: Response; body: Record<string, unknown> }> {
+  return requestJson('/archive-copy/migrate', options, cookie);
+}
+
 async function requestEditorAccessCookie(path: string): Promise<string> {
   assert.ok(editorPassword, 'ARCHIVE_EDITOR_PASSWORD is required for editor integration tests');
   assert.ok(testSessionCookie, 'A Clerk test session is required for editor integration tests');
@@ -389,6 +396,82 @@ test('concurrent first copy reads share one snapshot and saves cannot cross site
 
   const mainAfterCleanup = await requestArchive({ cache: 'no-store' }, undefined);
   assert.deepEqual(mainAfterCleanup, mainSnapshot);
+});
+
+test('copy migration is one-time, visible on later reads, and refuses newer revisions', { skip: !shouldRun }, async () => {
+  assert.ok(copyEditorCookie);
+  const previousCopyRow = await snapshotAndClearCopyRow();
+  const sourceBlocks = (defaultSiteBlocks as Array<Record<string, unknown>>).filter((block) => block.id !== 'ws.migration');
+  const targetArchive = {
+    introduction: '少年導覽隊搬遷後的介紹',
+    memories: [{
+      id: 'migration-check',
+      title: '遷移測試故事',
+      location: '測試地點',
+      era: '2026',
+      category: '測試',
+      storyteller: '測試者',
+      excerpt: '測試摘要',
+      story: '測試故事內容',
+      color: '#123456',
+      mark: '測試',
+    }],
+    siteContent: {
+      blocks: [
+        ...sourceBlocks,
+        { id: 'ws.migration', label: '搬遷版本標記', section: '網站設定', html: 'wonder-scouts-2026-10', x: 0, y: 0, width: 100, align: 'left' },
+      ],
+    },
+  };
+
+  try {
+    await archiveDatabase!.pool.query(
+      `INSERT INTO archive (id, introduction, memories, site_content, revision)
+       VALUES ($1, 'legacy copy', '[]'::jsonb, '{"blocks":[]}'::jsonb, 1)`,
+      [copyArchiveId],
+    );
+    const requestOptions = {
+      method: 'POST',
+      body: JSON.stringify({ archive: targetArchive, expectedVersion: 1 }),
+    };
+    const migrated = await requestArchiveCopyMigration(requestOptions);
+    assert.equal(migrated.response.status, 200, JSON.stringify(migrated.body));
+    assert.equal(migrated.body.version, 2);
+    assert.equal(migrated.body.introduction, targetArchive.introduction);
+
+    const reloaded = await requestArchiveCopy({ cache: 'no-store' }, null);
+    assert.deepEqual(reloaded, migrated.body);
+
+    const repeatedMigration = await requestArchiveCopyMigration(requestOptions);
+    assert.equal(repeatedMigration.response.status, 200, JSON.stringify(repeatedMigration.body));
+    assert.deepEqual(repeatedMigration.body, migrated.body);
+
+    const persistedRevision = await archiveDatabase!.pool.query<{ revision: number }>(
+      'SELECT revision FROM archive WHERE id = $1',
+      [copyArchiveId],
+    );
+    assert.equal(persistedRevision.rows[0]?.revision, 2);
+
+    const newerArchive = {
+      introduction: '較新的編輯不可被搬遷覆蓋',
+      memories: [],
+      siteContent: { blocks: [] },
+    };
+    await archiveDatabase!.pool.query(
+      `UPDATE archive
+          SET introduction = $2, memories = $3::jsonb, site_content = $4::jsonb, revision = 3
+        WHERE id = $1`,
+      [copyArchiveId, newerArchive.introduction, JSON.stringify(newerArchive.memories), JSON.stringify(newerArchive.siteContent)],
+    );
+    const staleMigration = await requestArchiveCopyMigration(requestOptions);
+    assert.equal(staleMigration.response.status, 409, JSON.stringify(staleMigration.body));
+    assert.deepEqual(await requestArchiveCopy({ cache: 'no-store' }, null), {
+      version: 3,
+      ...newerArchive,
+    });
+  } finally {
+    await restoreCopyRow(previousCopyRow);
+  }
 });
 
 test('editor unlock rejects unauthenticated and incorrect credentials without revealing secrets', { skip: !shouldRun }, async () => {
