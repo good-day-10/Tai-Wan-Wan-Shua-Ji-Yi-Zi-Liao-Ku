@@ -101,6 +101,21 @@ button { cursor: pointer; }
   mix-blend-mode: multiply;
 }
 .masthead { background: hsl(205 44% 18%); color: hsl(42 43% 96%); }
+.archive-mark {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: .65rem;
+  background: #050505;
+  color: #fff;
+  font-family: "Ma Shan Zheng", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", "Noto Serif TC", serif;
+  font-size: 1.9rem;
+  line-height: 1;
+}
 .serif { font-family: var(--app-font-serif); }
 .eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .14em; }
 .display-title { font-family: var(--app-font-serif); letter-spacing: -.055em; line-height: 1.08; }

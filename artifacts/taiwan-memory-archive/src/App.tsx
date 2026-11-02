@@ -419,9 +419,7 @@ function AppContent() {
         <header className="masthead relative z-30">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
           <a href={isFavoritesPage ? import.meta.env.BASE_URL : '#top'} className="flex items-center gap-3" data-testid="link-home">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--accent)/.65)] text-[hsl(var(--accent))]">
-              <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=400&q=80" alt="" className="h-10 w-10 rounded-full object-cover" />
-            </span>
+            <span className="archive-mark" aria-label="玩">玩</span>
             <span>
               <span className="block text-[10px] font-semibold tracking-[.16em] text-[hsl(var(--accent))]" data-sheet-key="hero_eyebrow">{DEFAULT_CONTENT.hero_eyebrow}</span>
               <span className="block text-base font-bold text-white" data-sheet-key="brand_name">{DEFAULT_CONTENT.brand_name}</span>
@@ -571,7 +569,7 @@ function AppContent() {
           <div className="footer-grid">
             <div>
               <div className="flex items-center gap-3">
-                <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=400&q=80" alt="" className="h-10 w-10 rounded-full object-cover" />
+                <span className="archive-mark" aria-label="玩">玩</span>
                 <div>
                   <p className="eyebrow text-[hsl(var(--accent))]">TAIWAN PLAY MEMORIES</p>
                   <h3 className="text-xl font-bold text-white" data-sheet-key="footer_brand">{DEFAULT_CONTENT.footer_brand}</h3>
@@ -629,7 +627,7 @@ const clerkAppearance = {
   options: {
     logoPlacement: 'inside' as const,
     logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg?v=2`,
   },
   variables: {
     colorPrimary: '#26747b',
