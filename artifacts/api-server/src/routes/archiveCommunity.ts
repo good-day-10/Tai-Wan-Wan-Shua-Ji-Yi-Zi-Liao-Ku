@@ -5,7 +5,7 @@ import { getAuth, clerkClient } from "@clerk/express";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import {
   AddMemoryResonanceBody, AddMemoryResonanceResponse, ApproveMemoryContributionBody,
-  GetMemoryResonanceResponse, GetPendingMemoryContributionsResponse,
+  GetMemoryResonanceResponse, GetPendingMemoryContributionsResponse, GetPublicMemoryContributionsResponse,
   RemoveMemoryResonanceBody, RemoveMemoryResonanceResponse, RejectMemoryContributionResponse, RequestArchiveImageUploadUrlBody,
   RequestArchiveImageUploadUrlResponse, SubmitMemoryContributionBody,
   SubmitMemoryContributionResponse,
@@ -45,10 +45,17 @@ router.post("/archive/resonance/:memoryId", async (req, res) => {
   if (!parsed.success) { res.status(400).json({ error: "Invalid reaction" }); return; }
   const [archive] = await db.select({ memories: archiveTable.memories }).from(archiveTable).where(eq(archiveTable.id, "main")).limit(1);
   const memories = Array.isArray(archive?.memories) ? archive.memories as Array<{ id?: string }> : [];
-  if (!memories.some((memory) => memory.id === req.params.memoryId)) { res.status(404).json({ error: "Memory not found" }); return; }
-  const [inserted] = await db.insert(archiveReactionsTable).values({ memoryId: req.params.memoryId, visitorId: parsed.data.visitorId }).onConflictDoNothing().returning();
-  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(archiveReactionsTable).where(eq(archiveReactionsTable.memoryId, req.params.memoryId));
-  res.json(AddMemoryResonanceResponse.parse({ memoryId: req.params.memoryId, count: row?.count ?? 0, alreadyReacted: !inserted }));
+  const memoryId = Array.isArray(req.params.memoryId) ? req.params.memoryId[0] : req.params.memoryId;
+  const isPublished = memories.some((memory) => memory.id === memoryId);
+  const pendingSubmissionId = memoryId.startsWith("pending-") ? memoryId.slice("pending-".length) : "";
+  const [pending] = pendingSubmissionId
+    ? await db.select({ id: archiveSubmissionsTable.id }).from(archiveSubmissionsTable)
+      .where(and(eq(archiveSubmissionsTable.id, pendingSubmissionId), eq(archiveSubmissionsTable.status, "pending"))).limit(1)
+    : [];
+  if (!isPublished && !pending) { res.status(404).json({ error: "Memory not found" }); return; }
+  const [inserted] = await db.insert(archiveReactionsTable).values({ memoryId, visitorId: parsed.data.visitorId }).onConflictDoNothing().returning();
+  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(archiveReactionsTable).where(eq(archiveReactionsTable.memoryId, memoryId));
+  res.json(AddMemoryResonanceResponse.parse({ memoryId, count: row?.count ?? 0, alreadyReacted: !inserted }));
 });
 
 router.delete("/archive/resonance/:memoryId", async (req, res) => {
@@ -70,6 +77,20 @@ router.post("/archive/submissions", async (req, res) => {
   const id = randomUUID();
   await db.insert(archiveSubmissionsTable).values({ id, ...parsed.data, status: "pending" });
   res.status(201).json(SubmitMemoryContributionResponse.parse({ id, status: "pending" }));
+});
+
+router.get("/archive/submissions/public", async (_req, res) => {
+  const rows = await db.select({
+    id: archiveSubmissionsTable.id,
+    title: archiveSubmissionsTable.title,
+    category: archiveSubmissionsTable.category,
+    era: archiveSubmissionsTable.era,
+    story: archiveSubmissionsTable.story,
+    imagePath: archiveSubmissionsTable.imagePath,
+  }).from(archiveSubmissionsTable)
+    .where(eq(archiveSubmissionsTable.status, "pending"))
+    .orderBy(asc(archiveSubmissionsTable.createdAt));
+  res.json(GetPublicMemoryContributionsResponse.parse(rows));
 });
 
 router.get("/archive/submissions", async (req, res) => {
@@ -100,6 +121,7 @@ router.post("/archive/submissions/:submissionId/approve", requireActiveSession, 
     memories: updatedMemories, revision: sql<number>`${archiveTable.revision} + 1`, updatedAt: new Date(),
   }).where(and(eq(archiveTable.id, "main"), eq(archiveTable.revision, parsed.data.expectedVersion))).returning();
   if (!updated) { res.status(409).json({ error: "Archive changed; reload before approving" }); return; }
+  await db.update(archiveReactionsTable).set({ memoryId: nextId }).where(eq(archiveReactionsTable.memoryId, `pending-${submission.id}`));
   await db.update(archiveSubmissionsTable).set({ status: "approved" }).where(eq(archiveSubmissionsTable.id, submission.id));
   res.json({ version: updated.revision, introduction: updated.introduction, memories: updated.memories, siteContent: updated.siteContent ?? undefined });
 });

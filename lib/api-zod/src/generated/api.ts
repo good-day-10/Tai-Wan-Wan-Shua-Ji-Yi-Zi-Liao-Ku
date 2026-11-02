@@ -417,6 +417,20 @@ export const RemoveMemoryResonanceResponse = zod.object({
 
 
 /**
+ * @summary List pending public memory contributions
+ */
+export const GetPublicMemoryContributionsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "era": zod.string(),
+  "story": zod.string(),
+  "imagePath": zod.string().nullish()
+})
+export const GetPublicMemoryContributionsResponse = zod.array(GetPublicMemoryContributionsResponseItem)
+
+
+/**
  * @summary Submit a memory for editorial review
  */
 export const submitMemoryContributionBodyTitleMax = 160;

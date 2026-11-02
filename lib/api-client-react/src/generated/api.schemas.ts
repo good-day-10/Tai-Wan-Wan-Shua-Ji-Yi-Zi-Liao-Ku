@@ -148,6 +148,16 @@ export interface MemorySubmissionReceipt {
   status: MemorySubmissionReceiptStatus;
 }
 
+export interface PublicMemorySubmission {
+  id: string;
+  title: string;
+  category: string;
+  era: string;
+  story: string;
+  /** @nullable */
+  imagePath?: string | null;
+}
+
 export interface ApproveMemoryContributionInput {
   /** @minimum 1 */
   expectedVersion: number;

@@ -24,6 +24,7 @@ export * from './memorySubmissionInputGender';
 export * from './memorySubmissionReceipt';
 export * from './memorySubmissionReceiptStatus';
 export * from './memorySubmissionStatus';
+export * from './publicMemorySubmission';
 export * from './saveArchiveRequest';
 export * from './siteContent';
 export * from './siteTextBlock';

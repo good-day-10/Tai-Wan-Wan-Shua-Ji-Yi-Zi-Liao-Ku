@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { getArchive as getSharedArchive, getEditorStatus, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
-import { useGetMemoryResonance, useAddMemoryResonance, useRemoveMemoryResonance, useSubmitMemoryContribution, useGetPendingMemoryContributions, useApproveMemoryContribution, useRejectMemoryContribution, useRequestArchiveImageUploadUrl, getGetMemoryResonanceQueryKey, getGetPendingMemoryContributionsQueryKey, getGetArchiveQueryKey, type MemoryResonanceList } from '@workspace/api-client-react';
+import { useGetMemoryResonance, useAddMemoryResonance, useRemoveMemoryResonance, useSubmitMemoryContribution, useGetPendingMemoryContributions, useGetPublicMemoryContributions, useApproveMemoryContribution, useRejectMemoryContribution, useRequestArchiveImageUploadUrl, getGetMemoryResonanceQueryKey, getGetPublicMemoryContributionsQueryKey, getGetPendingMemoryContributionsQueryKey, getGetArchiveQueryKey, type MemoryResonanceList } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Star, Tablet, Trash2, X, Heart, Upload, Type } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -29,6 +29,7 @@ type Memory = {
   mark: string;
   image?: string;
   images?: string[];
+  pendingReview?: boolean;
 };
 
 type SiteTextBlock = {
@@ -508,7 +509,7 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
       <div className="memory-image flex flex-col justify-between p-5" style={{ background: memory.color }}>
         {images[0] && <img src={images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         {images[0] && <div className="memory-image-overlay absolute inset-0" aria-hidden="true" />}
-        <div className="relative z-[1] flex justify-between text-white/80"><span className="card-stamp">{memory.mark}</span><span className="text-[10px] tracking-[.18em]"><SiteText siteContent={siteContent} id="card.number" fallback="NO." /> {memory.id}</span></div>
+        <div className="relative z-[1] flex justify-between text-white/80"><span className="card-stamp">{memory.mark}</span><span className="flex items-center gap-2 text-[10px] tracking-[.12em]">{memory.pendingReview && <span className="rounded-full bg-[#f2c56d] px-2.5 py-1 font-bold text-[#3c3322] shadow-sm" data-testid={`badge-pending-review-${memory.id}`}>待審核</span>}<span><SiteText siteContent={siteContent} id="card.number" fallback="NO." /> {memory.id}</span></span></div>
         <div className="relative z-[1]"><div className="mb-3 flex items-center gap-2 text-xs text-white/75"><MapPin size={13} />{memory.location}</div><h3 className="serif text-2xl font-bold leading-snug text-white">{memory.title}</h3></div>
       </div>
       <div className="p-5"><div className="mb-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.era}</span><span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1">{memory.category}</span></div><p className="serif min-h-[54px] text-base leading-relaxed text-[hsl(var(--foreground))]">「{memory.excerpt}」</p><div className="mt-5 flex items-center justify-between border-t border-[hsl(var(--border))] pt-4 text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.storyteller}</span><span className="flex items-center gap-1 font-semibold text-[hsl(var(--primary))]"><SiteText siteContent={siteContent} id="card.readMore" fallback="閱讀故事" /><ArrowRight size={14} /></span></div></div>
@@ -1376,8 +1377,24 @@ export function restoreEditorEntryFocus(trigger: HTMLButtonElement | null): void
 
 export function ArchiveHome({ auth }: { auth: ArchiveAuthState }) {
   const [location] = useLocation();
+  const { data: publicSubmissions = [] } = useGetPublicMemoryContributions({ query: { queryKey: getGetPublicMemoryContributionsQueryKey(), retry: 2, refetchInterval: 10000 } });
   const { isLoaded: authLoaded, isSignedIn, sessionId } = auth;
   const [archive, setArchive] = useState<ArchiveData>(loadArchive);
+  const pendingMemories = useMemo<Memory[]>(() => publicSubmissions.map((submission) => ({
+    id: `pending-${submission.id}`,
+    title: submission.title,
+    location: '讀者投稿',
+    era: submission.era,
+    category: submission.category,
+    storyteller: '讀者投稿',
+    excerpt: submission.story.slice(0, 100),
+    story: submission.story,
+    color: '#a97945',
+    mark: '投稿',
+    pendingReview: true,
+    ...(submission.imagePath ? { image: `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api/storage${submission.imagePath}` } : {}),
+  })), [publicSubmissions]);
+  const listedMemories = useMemo(() => [...archive.memories, ...pendingMemories], [archive.memories, pendingMemories]);
   const [recoveryDraft, setRecoveryDraft] = useState<ArchiveData | null>(readRecoveryDraft);
   const [needsAuthorization, setNeedsAuthorization] = useState(readSessionChangeNotice);
   const [draftCopyStatus, setDraftCopyStatus] = useState('');
@@ -1540,7 +1557,7 @@ export function ArchiveHome({ auth }: { auth: ArchiveAuthState }) {
   const isFavoritesPage = location === '/favorites';
   if (pageSlug && !activePage) return <NotFound />;
   if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} auth={auth} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} onArchiveUpdated={(updated) => { setArchive(updated); storeArchive(updated); }} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} auth={auth} favoriteCount={favoriteIds.length} /><main>{isFavoritesPage ? <FavoritesSection memories={archive.memories} siteContent={archive.siteContent} favoriteIds={favoriteIds} onOpen={setDetail} onToggleFavorite={toggleFavorite} /> : <><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} /><ContributionForm auth={auth} /><AboutSection siteContent={archive.siteContent} memories={archive.memories} /></>}</main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} onArchiveUpdated={(updated) => { setArchive(updated); storeArchive(updated); }} />}</div>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} auth={auth} favoriteCount={favoriteIds.length} /><main>{isFavoritesPage ? <FavoritesSection memories={archive.memories} siteContent={archive.siteContent} favoriteIds={favoriteIds} onOpen={setDetail} onToggleFavorite={toggleFavorite} /> : <><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={listedMemories} siteContent={archive.siteContent} onOpen={setDetail} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} /><ContributionForm auth={auth} /><AboutSection siteContent={archive.siteContent} memories={listedMemories} /></>}</main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} onArchiveUpdated={(updated) => { setArchive(updated); storeArchive(updated); }} />}</div>;
 }
 
 function Home() {

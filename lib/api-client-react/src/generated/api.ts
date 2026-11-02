@@ -32,6 +32,7 @@ import type {
   MemorySubmission,
   MemorySubmissionInput,
   MemorySubmissionReceipt,
+  PublicMemorySubmission,
   SaveArchiveRequest,
   UploadUrlRequest,
   UploadUrlResponse
@@ -727,6 +728,83 @@ export const useRemoveMemoryResonance = <TError = ErrorType<void>,
       > => {
       return useMutation(getRemoveMemoryResonanceMutationOptions(options));
     }
+
+export const getGetPublicMemoryContributionsUrl = () => {
+
+
+
+
+  return `/api/archive/submissions/public`
+}
+
+/**
+ * @summary List pending public memory contributions
+ */
+export const getPublicMemoryContributions = async ( options?: Parameters<typeof customFetch>[1]): Promise<PublicMemorySubmission[]> => {
+
+  return customFetch<PublicMemorySubmission[]>(getGetPublicMemoryContributionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicMemoryContributionsQueryKey = () => {
+    return [
+    `/api/archive/submissions/public`
+    ] as const;
+    }
+
+
+export const getGetPublicMemoryContributionsQueryOptions = <TData = Awaited<ReturnType<typeof getPublicMemoryContributions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicMemoryContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicMemoryContributionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicMemoryContributions>>> = ({ signal }) => getPublicMemoryContributions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicMemoryContributions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicMemoryContributionsQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicMemoryContributions>>>
+export type GetPublicMemoryContributionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List pending public memory contributions
+ */
+
+export function useGetPublicMemoryContributions<TData = Awaited<ReturnType<typeof getPublicMemoryContributions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicMemoryContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicMemoryContributionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getSubmitMemoryContributionUrl = () => {
 

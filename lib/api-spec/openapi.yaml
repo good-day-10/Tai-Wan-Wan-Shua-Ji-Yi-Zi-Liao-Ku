@@ -179,7 +179,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicMemorySubmissionList"
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicMemorySubmission"
   /archive/submissions:
     post:
       operationId: submitMemoryContribution
@@ -595,10 +597,6 @@ components:
         imagePath:
           type: ["string", "null"]
       required: [id, title, category, era, story]
-    PublicMemorySubmissionList:
-      type: array
-      items:
-        $ref: "#/components/schemas/PublicMemorySubmission"
     ApproveMemoryContributionInput:
       type: object
       properties:
