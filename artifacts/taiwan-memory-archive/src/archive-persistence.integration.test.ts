@@ -329,15 +329,25 @@ test.after(async () => {
   }
 });
 
-test('first copy read clones the main snapshot and saves cannot cross site cookies', { skip: !shouldRun }, async () => {
+test('concurrent first copy reads share one snapshot and saves cannot cross site cookies', { skip: !shouldRun }, async () => {
   assert.ok(copyEditorCookie);
   const mainSnapshot = await requestArchive({ cache: 'no-store' });
   const previousCopyRow = await snapshotAndClearCopyRow();
 
   try {
-    const firstCopyRead = await requestArchiveCopy({ cache: 'no-store' }, undefined);
+    const [firstCopyRead, concurrentCopyRead] = await Promise.all([
+      requestArchiveCopy({ cache: 'no-store' }, undefined),
+      requestArchiveCopy({ cache: 'no-store' }, undefined),
+    ]);
     assert.equal(firstCopyRead.version, 1);
+    assert.deepEqual(concurrentCopyRead, firstCopyRead);
     assert.deepEqual(withoutVersion(firstCopyRead), withoutVersion(mainSnapshot));
+
+    const initializedCopyRows = await archiveDatabase!.pool.query<{ count: number }>(
+      'SELECT count(*)::int AS count FROM archive WHERE id = $1',
+      [copyArchiveId],
+    );
+    assert.equal(initializedCopyRows.rows[0]?.count, 1);
 
     const uniqueMarker = `copy-isolation-${Date.now()}`;
     const copySaveOptions = {

@@ -112,27 +112,13 @@ router.get("/archive-copy", async (_req, res): Promise<void> => {
     .limit(1);
 
   if (!archive) {
-    const [source] = await db
-      .select()
-      .from(archiveTable)
-      .where(eq(archiveTable.id, ARCHIVE_ID))
-      .limit(1);
-
-    if (!source) {
-      res.status(404).json({ error: "Source archive has not been saved yet" });
-      return;
-    }
-
-    await db
-      .insert(archiveTable)
-      .values({
-        id: COPY_ARCHIVE_ID,
-        introduction: source.introduction,
-        memories: source.memories,
-        siteContent: source.siteContent,
-        revision: 1,
-      })
-      .onConflictDoNothing({ target: archiveTable.id });
+    await db.execute(sql`
+      INSERT INTO ${archiveTable} (id, introduction, memories, site_content, revision)
+      SELECT ${COPY_ARCHIVE_ID}, source.introduction, source.memories, source.site_content, 1
+        FROM ${archiveTable} AS source
+       WHERE source.id = ${ARCHIVE_ID}
+      ON CONFLICT (id) DO NOTHING
+    `);
 
     [archive] = await db
       .select()
@@ -142,7 +128,7 @@ router.get("/archive-copy", async (_req, res): Promise<void> => {
   }
 
   if (!archive) {
-    res.status(404).json({ error: "Archive copy has not been saved yet" });
+    res.status(404).json({ error: "Source archive has not been saved yet" });
     return;
   }
 
