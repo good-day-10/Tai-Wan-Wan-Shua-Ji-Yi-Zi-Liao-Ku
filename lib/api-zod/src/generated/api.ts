@@ -349,6 +349,217 @@ export const SaveArchiveCopyResponse = zod.object({
 
 
 /**
+ * @summary Get resonance counts for memories
+ */
+export const getMemoryResonanceResponseCountMin = 0;
+
+
+
+export const GetMemoryResonanceResponseItem = zod.object({
+  "memoryId": zod.string(),
+  "count": zod.number().int().min(getMemoryResonanceResponseCountMin)
+})
+export const GetMemoryResonanceResponse = zod.array(GetMemoryResonanceResponseItem)
+
+
+/**
+ * @summary Add one visitor resonance for a memory
+ */
+export const AddMemoryResonanceParams = zod.object({
+  "memoryId": zod.coerce.string()
+})
+
+export const addMemoryResonanceBodyVisitorIdMin = 8;
+export const addMemoryResonanceBodyVisitorIdMax = 80;
+
+
+
+export const AddMemoryResonanceBody = zod.object({
+  "visitorId": zod.string().min(addMemoryResonanceBodyVisitorIdMin).max(addMemoryResonanceBodyVisitorIdMax)
+})
+
+export const addMemoryResonanceResponseCountMin = 0;
+
+
+
+export const AddMemoryResonanceResponse = zod.object({
+  "memoryId": zod.string(),
+  "count": zod.number().int().min(addMemoryResonanceResponseCountMin),
+  "alreadyReacted": zod.boolean()
+})
+
+
+/**
+ * @summary Submit a memory for editorial review
+ */
+export const submitMemoryContributionBodyTitleMax = 160;
+
+export const submitMemoryContributionBodyCategoryMax = 80;
+
+export const submitMemoryContributionBodyEraMax = 80;
+
+export const submitMemoryContributionBodyStoryMin = 10;
+export const submitMemoryContributionBodyStoryMax = 10000;
+
+export const submitMemoryContributionBodyImagePathMax = 500;
+
+
+
+export const SubmitMemoryContributionBody = zod.object({
+  "title": zod.string().min(1).max(submitMemoryContributionBodyTitleMax),
+  "category": zod.string().min(1).max(submitMemoryContributionBodyCategoryMax),
+  "era": zod.string().min(1).max(submitMemoryContributionBodyEraMax),
+  "story": zod.string().min(submitMemoryContributionBodyStoryMin).max(submitMemoryContributionBodyStoryMax),
+  "imagePath": zod.string().max(submitMemoryContributionBodyImagePathMax).optional()
+})
+
+export const SubmitMemoryContributionResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'rejected'])
+})
+
+
+/**
+ * @summary List contributions awaiting editor review
+ */
+export const getPendingMemoryContributionsResponseOneTitleMax = 160;
+
+export const getPendingMemoryContributionsResponseOneCategoryMax = 80;
+
+export const getPendingMemoryContributionsResponseOneEraMax = 80;
+
+export const getPendingMemoryContributionsResponseOneStoryMin = 10;
+export const getPendingMemoryContributionsResponseOneStoryMax = 10000;
+
+export const getPendingMemoryContributionsResponseOneImagePathMax = 500;
+
+
+
+export const GetPendingMemoryContributionsResponseItem = zod.object({
+  "title": zod.string().min(1).max(getPendingMemoryContributionsResponseOneTitleMax),
+  "category": zod.string().min(1).max(getPendingMemoryContributionsResponseOneCategoryMax),
+  "era": zod.string().min(1).max(getPendingMemoryContributionsResponseOneEraMax),
+  "story": zod.string().min(getPendingMemoryContributionsResponseOneStoryMin).max(getPendingMemoryContributionsResponseOneStoryMax),
+  "imagePath": zod.string().max(getPendingMemoryContributionsResponseOneImagePathMax).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'rejected']),
+  "createdAt": zod.coerce.date()
+}))
+export const GetPendingMemoryContributionsResponse = zod.array(GetPendingMemoryContributionsResponseItem)
+
+
+/**
+ * @summary Approve a contribution and add it to the archive
+ */
+export const ApproveMemoryContributionParams = zod.object({
+  "submissionId": zod.coerce.string()
+})
+
+
+
+
+export const ApproveMemoryContributionBody = zod.object({
+  "expectedVersion": zod.number().int().min(1)
+})
+
+
+
+
+export const ApproveMemoryContributionResponse = zod.object({
+  "version": zod.number().int().min(1).optional().describe('Monotonically increasing server revision used for optimistic concurrency checks'),
+  "introduction": zod.string(),
+  "memories": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "location": zod.string(),
+  "era": zod.string(),
+  "category": zod.string(),
+  "storyteller": zod.string(),
+  "excerpt": zod.string(),
+  "story": zod.string(),
+  "storyHtml": zod.string().optional(),
+  "color": zod.string(),
+  "mark": zod.string(),
+  "image": zod.string().optional(),
+  "images": zod.array(zod.string()).optional()
+})),
+  "siteContent": zod.object({
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+})),
+  "pages": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "backgroundImage": zod.string().optional(),
+  "blocks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "html": zod.string(),
+  "x": zod.number(),
+  "y": zod.number(),
+  "width": zod.number(),
+  "align": zod.string()
+}))
+})).optional()
+}).optional()
+})
+
+
+/**
+ * @summary Reject a contribution
+ */
+export const RejectMemoryContributionParams = zod.object({
+  "submissionId": zod.coerce.string()
+})
+
+export const RejectMemoryContributionResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'rejected'])
+})
+
+
+/**
+ * @summary Request a presigned upload URL for a memory photo
+ */
+export const requestArchiveImageUploadUrlBodyNameMax = 255;
+
+export const requestArchiveImageUploadUrlBodySizeMax = 10485760;
+
+
+
+export const RequestArchiveImageUploadUrlBody = zod.object({
+  "name": zod.string().min(1).max(requestArchiveImageUploadUrlBodyNameMax),
+  "size": zod.number().int().min(1).max(requestArchiveImageUploadUrlBodySizeMax),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp'])
+})
+
+export const RequestArchiveImageUploadUrlResponse = zod.object({
+  "uploadURL": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Serve a memory archive image
+ */
+export const GetArchiveImageParams = zod.object({
+  "objectPath": zod.coerce.string()
+})
+
+export const GetArchiveImageResponse = zod.unknown()
+
+
+/**
  * @summary Unlock archive editing for the signed-in user
  */
 export const UnlockEditorBody = zod.object({

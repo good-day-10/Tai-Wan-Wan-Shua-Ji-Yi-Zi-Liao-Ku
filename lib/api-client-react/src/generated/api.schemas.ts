@@ -60,6 +60,114 @@ export interface Archive {
   siteContent?: SiteContent;
 }
 
+export interface MemoryResonance {
+  memoryId: string;
+  /** @minimum 0 */
+  count: number;
+}
+
+export type MemoryResonanceList = MemoryResonance[];
+
+export interface MemoryResonanceInput {
+  /**
+     * @minLength 8
+     * @maxLength 80
+     */
+  visitorId: string;
+}
+
+export interface MemoryResonanceResult {
+  memoryId: string;
+  /** @minimum 0 */
+  count: number;
+  alreadyReacted: boolean;
+}
+
+export interface MemorySubmissionInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  category: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  era: string;
+  /**
+     * @minLength 10
+     * @maxLength 10000
+     */
+  story: string;
+  /** @maxLength 500 */
+  imagePath?: string;
+}
+
+export type MemorySubmissionStatus = typeof MemorySubmissionStatus[keyof typeof MemorySubmissionStatus];
+
+
+export const MemorySubmissionStatus = {
+  pending: 'pending',
+  rejected: 'rejected',
+} as const;
+
+export type MemorySubmission = MemorySubmissionInput & {
+  id: string;
+  status: MemorySubmissionStatus;
+  createdAt: string;
+};
+
+export type MemorySubmissionReceiptStatus = typeof MemorySubmissionReceiptStatus[keyof typeof MemorySubmissionReceiptStatus];
+
+
+export const MemorySubmissionReceiptStatus = {
+  pending: 'pending',
+  rejected: 'rejected',
+} as const;
+
+export interface MemorySubmissionReceipt {
+  id: string;
+  status: MemorySubmissionReceiptStatus;
+}
+
+export interface ApproveMemoryContributionInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+}
+
+export type UploadUrlRequestContentType = typeof UploadUrlRequestContentType[keyof typeof UploadUrlRequestContentType];
+
+
+export const UploadUrlRequestContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface UploadUrlRequest {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  size: number;
+  contentType: UploadUrlRequestContentType;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+}
+
 export interface SaveArchiveRequest {
   archive: Archive;
   /**

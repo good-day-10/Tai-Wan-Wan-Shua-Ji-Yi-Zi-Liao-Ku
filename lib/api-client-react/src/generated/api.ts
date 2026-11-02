@@ -20,12 +20,21 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApproveMemoryContributionInput,
   Archive,
   EditorStatus,
   EditorUnlockRequest,
   EditorUnlockResponse,
   HealthStatus,
-  SaveArchiveRequest
+  MemoryResonanceInput,
+  MemoryResonanceList,
+  MemoryResonanceResult,
+  MemorySubmission,
+  MemorySubmissionInput,
+  MemorySubmissionReceipt,
+  SaveArchiveRequest,
+  UploadUrlRequest,
+  UploadUrlResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -463,6 +472,665 @@ export const useSaveArchiveCopy = <TError = ErrorType<void>,
       > => {
       return useMutation(getSaveArchiveCopyMutationOptions(options));
     }
+
+export const getGetMemoryResonanceUrl = () => {
+
+
+
+
+  return `/api/archive/resonance`
+}
+
+/**
+ * @summary Get resonance counts for memories
+ */
+export const getMemoryResonance = async ( options?: Parameters<typeof customFetch>[1]): Promise<MemoryResonanceList> => {
+
+  return customFetch<MemoryResonanceList>(getGetMemoryResonanceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMemoryResonanceQueryKey = () => {
+    return [
+    `/api/archive/resonance`
+    ] as const;
+    }
+
+
+export const getGetMemoryResonanceQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryResonance>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoryResonanceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryResonance>>> = ({ signal }) => getMemoryResonance({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMemoryResonanceQueryResult = NonNullable<Awaited<ReturnType<typeof getMemoryResonance>>>
+export type GetMemoryResonanceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get resonance counts for memories
+ */
+
+export function useGetMemoryResonance<TData = Awaited<ReturnType<typeof getMemoryResonance>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMemoryResonanceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddMemoryResonanceUrl = (memoryId: string,) => {
+
+
+
+
+  return `/api/archive/resonance/${memoryId}`
+}
+
+/**
+ * @summary Add one visitor resonance for a memory
+ */
+export const addMemoryResonance = async (memoryId: string,
+    memoryResonanceInput: MemoryResonanceInput, options?: Parameters<typeof customFetch>[1]): Promise<MemoryResonanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MemoryResonanceResult>(getAddMemoryResonanceUrl(memoryId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memoryResonanceInput)
+  }
+);}
+
+
+
+
+
+export const getAddMemoryResonanceMutationKey = () => ['addMemoryResonance'] as const;
+
+export const getAddMemoryResonanceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMemoryResonance>>, TError,AddMemoryResonanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMemoryResonance>>, TError,AddMemoryResonanceMutationVariables, TContext> => {
+
+const mutationKey = getAddMemoryResonanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMemoryResonance>>, AddMemoryResonanceMutationVariables> = (props) => {
+          const {memoryId,data} = props ?? {};
+
+          return  addMemoryResonance(memoryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMemoryResonanceMutationResult = NonNullable<Awaited<ReturnType<typeof addMemoryResonance>>>
+    export type AddMemoryResonanceMutationBody = BodyType<MemoryResonanceInput>
+    export type AddMemoryResonanceMutationError = ErrorType<void>
+    export type AddMemoryResonanceMutationVariables = {memoryId: string;data: BodyType<MemoryResonanceInput>}
+
+    /**
+ * @summary Add one visitor resonance for a memory
+ */
+export const useAddMemoryResonance = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMemoryResonance>>, TError,AddMemoryResonanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addMemoryResonance>>,
+        TError,
+        AddMemoryResonanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMemoryResonanceMutationOptions(options));
+    }
+
+export const getSubmitMemoryContributionUrl = () => {
+
+
+
+
+  return `/api/archive/submissions`
+}
+
+/**
+ * @summary Submit a memory for editorial review
+ */
+export const submitMemoryContribution = async (memorySubmissionInput: MemorySubmissionInput, options?: Parameters<typeof customFetch>[1]): Promise<MemorySubmissionReceipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MemorySubmissionReceipt>(getSubmitMemoryContributionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memorySubmissionInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitMemoryContributionMutationKey = () => ['submitMemoryContribution'] as const;
+
+export const getSubmitMemoryContributionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMemoryContribution>>, TError,SubmitMemoryContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitMemoryContribution>>, TError,SubmitMemoryContributionMutationVariables, TContext> => {
+
+const mutationKey = getSubmitMemoryContributionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitMemoryContribution>>, SubmitMemoryContributionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitMemoryContribution(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitMemoryContributionMutationResult = NonNullable<Awaited<ReturnType<typeof submitMemoryContribution>>>
+    export type SubmitMemoryContributionMutationBody = BodyType<MemorySubmissionInput>
+    export type SubmitMemoryContributionMutationError = ErrorType<void>
+    export type SubmitMemoryContributionMutationVariables = {data: BodyType<MemorySubmissionInput>}
+
+    /**
+ * @summary Submit a memory for editorial review
+ */
+export const useSubmitMemoryContribution = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMemoryContribution>>, TError,SubmitMemoryContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitMemoryContribution>>,
+        TError,
+        SubmitMemoryContributionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitMemoryContributionMutationOptions(options));
+    }
+
+export const getGetPendingMemoryContributionsUrl = () => {
+
+
+
+
+  return `/api/archive/submissions`
+}
+
+/**
+ * @summary List contributions awaiting editor review
+ */
+export const getPendingMemoryContributions = async ( options?: Parameters<typeof customFetch>[1]): Promise<MemorySubmission[]> => {
+
+  return customFetch<MemorySubmission[]>(getGetPendingMemoryContributionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPendingMemoryContributionsQueryKey = () => {
+    return [
+    `/api/archive/submissions`
+    ] as const;
+    }
+
+
+export const getGetPendingMemoryContributionsQueryOptions = <TData = Awaited<ReturnType<typeof getPendingMemoryContributions>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPendingMemoryContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPendingMemoryContributionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPendingMemoryContributions>>> = ({ signal }) => getPendingMemoryContributions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPendingMemoryContributions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPendingMemoryContributionsQueryResult = NonNullable<Awaited<ReturnType<typeof getPendingMemoryContributions>>>
+export type GetPendingMemoryContributionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List contributions awaiting editor review
+ */
+
+export function useGetPendingMemoryContributions<TData = Awaited<ReturnType<typeof getPendingMemoryContributions>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPendingMemoryContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPendingMemoryContributionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveMemoryContributionUrl = (submissionId: string,) => {
+
+
+
+
+  return `/api/archive/submissions/${submissionId}/approve`
+}
+
+/**
+ * @summary Approve a contribution and add it to the archive
+ */
+export const approveMemoryContribution = async (submissionId: string,
+    approveMemoryContributionInput: ApproveMemoryContributionInput, options?: Parameters<typeof customFetch>[1]): Promise<Archive> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Archive>(getApproveMemoryContributionUrl(submissionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approveMemoryContributionInput)
+  }
+);}
+
+
+
+
+
+export const getApproveMemoryContributionMutationKey = () => ['approveMemoryContribution'] as const;
+
+export const getApproveMemoryContributionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMemoryContribution>>, TError,ApproveMemoryContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveMemoryContribution>>, TError,ApproveMemoryContributionMutationVariables, TContext> => {
+
+const mutationKey = getApproveMemoryContributionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveMemoryContribution>>, ApproveMemoryContributionMutationVariables> = (props) => {
+          const {submissionId,data} = props ?? {};
+
+          return  approveMemoryContribution(submissionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveMemoryContributionMutationResult = NonNullable<Awaited<ReturnType<typeof approveMemoryContribution>>>
+    export type ApproveMemoryContributionMutationBody = BodyType<ApproveMemoryContributionInput>
+    export type ApproveMemoryContributionMutationError = ErrorType<void>
+    export type ApproveMemoryContributionMutationVariables = {submissionId: string;data: BodyType<ApproveMemoryContributionInput>}
+
+    /**
+ * @summary Approve a contribution and add it to the archive
+ */
+export const useApproveMemoryContribution = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMemoryContribution>>, TError,ApproveMemoryContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveMemoryContribution>>,
+        TError,
+        ApproveMemoryContributionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveMemoryContributionMutationOptions(options));
+    }
+
+export const getRejectMemoryContributionUrl = (submissionId: string,) => {
+
+
+
+
+  return `/api/archive/submissions/${submissionId}/reject`
+}
+
+/**
+ * @summary Reject a contribution
+ */
+export const rejectMemoryContribution = async (submissionId: string, options?: Parameters<typeof customFetch>[1]): Promise<MemorySubmissionReceipt> => {
+
+  return customFetch<MemorySubmissionReceipt>(getRejectMemoryContributionUrl(submissionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRejectMemoryContributionMutationKey = () => ['rejectMemoryContribution'] as const;
+
+export const getRejectMemoryContributionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectMemoryContribution>>, TError,RejectMemoryContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectMemoryContribution>>, TError,RejectMemoryContributionMutationVariables, TContext> => {
+
+const mutationKey = getRejectMemoryContributionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectMemoryContribution>>, RejectMemoryContributionMutationVariables> = (props) => {
+          const {submissionId} = props ?? {};
+
+          return  rejectMemoryContribution(submissionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectMemoryContributionMutationResult = NonNullable<Awaited<ReturnType<typeof rejectMemoryContribution>>>
+
+    export type RejectMemoryContributionMutationError = ErrorType<void>
+    export type RejectMemoryContributionMutationVariables = {submissionId: string}
+
+    /**
+ * @summary Reject a contribution
+ */
+export const useRejectMemoryContribution = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectMemoryContribution>>, TError,RejectMemoryContributionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectMemoryContribution>>,
+        TError,
+        RejectMemoryContributionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectMemoryContributionMutationOptions(options));
+    }
+
+export const getRequestArchiveImageUploadUrlUrl = () => {
+
+
+
+
+  return `/api/storage/uploads/request-url`
+}
+
+/**
+ * @summary Request a presigned upload URL for a memory photo
+ */
+export const requestArchiveImageUploadUrl = async (uploadUrlRequest: UploadUrlRequest, options?: Parameters<typeof customFetch>[1]): Promise<UploadUrlResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<UploadUrlResponse>(getRequestArchiveImageUploadUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(uploadUrlRequest)
+  }
+);}
+
+
+
+
+
+export const getRequestArchiveImageUploadUrlMutationKey = () => ['requestArchiveImageUploadUrl'] as const;
+
+export const getRequestArchiveImageUploadUrlMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestArchiveImageUploadUrl>>, TError,RequestArchiveImageUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestArchiveImageUploadUrl>>, TError,RequestArchiveImageUploadUrlMutationVariables, TContext> => {
+
+const mutationKey = getRequestArchiveImageUploadUrlMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestArchiveImageUploadUrl>>, RequestArchiveImageUploadUrlMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestArchiveImageUploadUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestArchiveImageUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestArchiveImageUploadUrl>>>
+    export type RequestArchiveImageUploadUrlMutationBody = BodyType<UploadUrlRequest>
+    export type RequestArchiveImageUploadUrlMutationError = ErrorType<void>
+    export type RequestArchiveImageUploadUrlMutationVariables = {data: BodyType<UploadUrlRequest>}
+
+    /**
+ * @summary Request a presigned upload URL for a memory photo
+ */
+export const useRequestArchiveImageUploadUrl = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestArchiveImageUploadUrl>>, TError,RequestArchiveImageUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestArchiveImageUploadUrl>>,
+        TError,
+        RequestArchiveImageUploadUrlMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestArchiveImageUploadUrlMutationOptions(options));
+    }
+
+export const getGetArchiveImageUrl = (objectPath: string,) => {
+
+
+
+
+  return `/api/storage/objects/${objectPath}`
+}
+
+/**
+ * @summary Serve a memory archive image
+ */
+export const getArchiveImage = async (objectPath: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetArchiveImageUrl(objectPath),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetArchiveImageQueryKey = (objectPath: string,) => {
+    return [
+    `/api/storage/objects/${objectPath}`
+    ] as const;
+    }
+
+
+export const getGetArchiveImageQueryOptions = <TData = Awaited<ReturnType<typeof getArchiveImage>>, TError = ErrorType<void>>(objectPath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetArchiveImageQueryKey(objectPath);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getArchiveImage>>> = ({ signal }) => getArchiveImage(objectPath, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: objectPath !== null && objectPath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getArchiveImage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetArchiveImageQueryResult = NonNullable<Awaited<ReturnType<typeof getArchiveImage>>>
+export type GetArchiveImageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Serve a memory archive image
+ */
+
+export function useGetArchiveImage<TData = Awaited<ReturnType<typeof getArchiveImage>>, TError = ErrorType<void>>(
+ objectPath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetArchiveImageQueryOptions(objectPath,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUnlockEditorUrl = () => {
 

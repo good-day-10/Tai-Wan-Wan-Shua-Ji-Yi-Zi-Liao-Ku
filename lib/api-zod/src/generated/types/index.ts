@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './approveMemoryContributionInput';
 export * from './archive';
 export * from './customPage';
 export * from './editorStatus';
@@ -13,6 +14,18 @@ export * from './editorUnlockRequest';
 export * from './editorUnlockResponse';
 export * from './healthStatus';
 export * from './memory';
+export * from './memoryResonance';
+export * from './memoryResonanceInput';
+export * from './memoryResonanceList';
+export * from './memoryResonanceResult';
+export * from './memorySubmission';
+export * from './memorySubmissionInput';
+export * from './memorySubmissionReceipt';
+export * from './memorySubmissionReceiptStatus';
+export * from './memorySubmissionStatus';
 export * from './saveArchiveRequest';
 export * from './siteContent';
 export * from './siteTextBlock';
+export * from './uploadUrlRequest';
+export * from './uploadUrlRequestContentType';
+export * from './uploadUrlResponse';

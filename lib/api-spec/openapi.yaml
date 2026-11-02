@@ -101,6 +101,178 @@ paths:
           description: Authentication or editor access required
         "409":
           description: Archive copy was changed by another editor
+  /archive/resonance:
+    get:
+      operationId: getMemoryResonance
+      tags: [archive]
+      summary: Get resonance counts for memories
+      responses:
+        "200":
+          description: Resonance counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryResonanceList"
+  /archive/resonance/{memoryId}:
+    post:
+      operationId: addMemoryResonance
+      tags: [archive]
+      summary: Add one visitor resonance for a memory
+      parameters:
+        - name: memoryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryResonanceInput"
+      responses:
+        "200":
+          description: Updated resonance count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryResonanceResult"
+        "400":
+          description: Invalid reaction
+        "404":
+          description: Memory not found
+  /archive/submissions:
+    post:
+      operationId: submitMemoryContribution
+      tags: [archive]
+      summary: Submit a memory for editorial review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemorySubmissionInput"
+      responses:
+        "201":
+          description: Contribution submitted for review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemorySubmissionReceipt"
+        "400":
+          description: Invalid contribution
+    get:
+      operationId: getPendingMemoryContributions
+      tags: [archive]
+      summary: List contributions awaiting editor review
+      responses:
+        "200":
+          description: Pending contributions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemorySubmission"
+        "401":
+          description: Editor access required
+  /archive/submissions/{submissionId}/approve:
+    post:
+      operationId: approveMemoryContribution
+      tags: [archive]
+      summary: Approve a contribution and add it to the archive
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveMemoryContributionInput"
+      responses:
+        "200":
+          description: Updated shared archive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archive"
+        "401":
+          description: Editor access required
+        "409":
+          description: Archive changed; reload before approving
+  /archive/submissions/{submissionId}/reject:
+    post:
+      operationId: rejectMemoryContribution
+      tags: [archive]
+      summary: Reject a contribution
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contribution rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemorySubmissionReceipt"
+        "401":
+          description: Editor access required
+  /storage/uploads/request-url:
+    post:
+      operationId: requestArchiveImageUploadUrl
+      tags: [archive]
+      summary: Request a presigned upload URL for a memory photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "401":
+          description: Sign in before uploading a photo
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getArchiveImage
+      tags: [archive]
+      summary: Serve a memory archive image
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Uploaded image bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Image not found
   /editor/unlock:
     post:
       operationId: unlockEditor
@@ -284,6 +456,115 @@ components:
             $ref: "#/components/schemas/CustomPage"
       required:
         - blocks
+    MemoryResonance:
+      type: object
+      properties:
+        memoryId:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+      required: [memoryId, count]
+    MemoryResonanceList:
+      type: array
+      items:
+        $ref: "#/components/schemas/MemoryResonance"
+    MemoryResonanceInput:
+      type: object
+      properties:
+        visitorId:
+          type: string
+          minLength: 8
+          maxLength: 80
+      required: [visitorId]
+    MemoryResonanceResult:
+      type: object
+      properties:
+        memoryId:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+        alreadyReacted:
+          type: boolean
+      required: [memoryId, count, alreadyReacted]
+    MemorySubmissionInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        category:
+          type: string
+          minLength: 1
+          maxLength: 80
+        era:
+          type: string
+          minLength: 1
+          maxLength: 80
+        story:
+          type: string
+          minLength: 10
+          maxLength: 10000
+        imagePath:
+          type: string
+          maxLength: 500
+      required: [title, category, era, story]
+    MemorySubmission:
+      allOf:
+        - $ref: "#/components/schemas/MemorySubmissionInput"
+        - type: object
+          properties:
+            id:
+              type: string
+            status:
+              type: string
+              enum: [pending, rejected]
+            createdAt:
+              type: string
+              format: date-time
+          required: [id, status, createdAt]
+    MemorySubmissionReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, rejected]
+      required: [id, status]
+    ApproveMemoryContributionInput:
+      type: object
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+      required: [expectedVersion]
+    UploadUrlRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        size:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+      required: [name, size, contentType]
+    UploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+      required: [uploadURL, objectPath]
     CustomPage:
       type: object
       properties:

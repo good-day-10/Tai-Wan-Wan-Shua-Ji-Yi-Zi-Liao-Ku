@@ -80,6 +80,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+html { font-size: calc(100% * var(--reading-scale, 1.08)); }
 body {
   margin: 0;
   background: hsl(var(--background));
@@ -135,6 +136,18 @@ button { cursor: pointer; }
 .shared-archive-notice-inner { min-width: 0; }
 .shared-archive-notice-copy { flex: 1 1 auto; }
 .shared-archive-retry { min-height: 2.75rem; white-space: nowrap; }
+.reading-size-button { min-width: 2.75rem; min-height: 2.75rem; border-radius: 999px; color: hsl(42 43% 96%); font-size: 1rem; font-weight: 800; }
+.reading-size-button:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.reading-size-button:disabled { cursor: not-allowed; opacity: .42; }
+.stamp-chip { position: relative; border-style: dashed !important; letter-spacing: .025em; }
+.stamp-chip[aria-pressed="true"] { box-shadow: inset 0 0 0 2px hsl(var(--primary-foreground) / .25); }
+.contribution-section { background: linear-gradient(125deg, hsl(39 47% 92%), hsl(42 43% 96%) 58%, hsl(19 45% 94%)); }
+.contribution-section .input-archive { min-height: 3.1rem; }
+.contribution-section textarea.input-archive { min-height: 12rem; }
+.contribution-section input[type="file"]:focus-visible + span { outline: 3px solid hsl(var(--accent)); }
+.contribution-section label:focus-within { outline: 3px solid hsl(var(--accent)); outline-offset: 4px; border-radius: .5rem; }
+[data-testid^="button-resonate-"] { border-color: hsl(var(--secondary) / .55); }
+[data-testid^="button-resonate-"]:hover:not(:disabled) { background: hsl(var(--secondary) / .16); }
 @keyframes modal-in { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .input-archive { width: 100%; border: 1px solid hsl(var(--border)); border-radius: .65rem; padding: .75rem .85rem; background: hsl(var(--card)); color: hsl(var(--foreground)); }
 .search-input { padding-left: 2.75rem; }
