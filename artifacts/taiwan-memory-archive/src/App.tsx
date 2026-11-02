@@ -450,9 +450,9 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
   const images = getMemoryImages(memory);
   const { data: resonance, isLoading, isError } = useGetMemoryResonance({ query: {
     queryKey: getGetMemoryResonanceQueryKey(),
-    retry: 2,
-    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 3000),
-    refetchInterval: 5000,
+    retry: 1,
+    retryDelay: 250,
+    refetchInterval: 2500,
     refetchOnWindowFocus: true,
   } });
   const queryClient = useQueryClient();
@@ -461,47 +461,44 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
   const [reacted, setReacted] = useState(() => {
     try { return localStorage.getItem(`memory-resonance-${memory.id}`) === 'true'; } catch { return false; }
   });
+  const reactedRef = useRef(reacted);
+  const reactionLockRef = useRef(false);
+  const [isReacting, setIsReacting] = useState(false);
   const count = resonance?.find((item) => item.memoryId === memory.id)?.count ?? 0;
   const react = async () => {
-    if (addResonance.isPending || removeResonance.isPending) return;
+    if (reactionLockRef.current) return;
+    reactionLockRef.current = true;
+    setIsReacting(true);
     const queryKey = getGetMemoryResonanceQueryKey();
-    await queryClient.cancelQueries({ queryKey });
-    const previous = queryClient.getQueryData<MemoryResonanceList>(queryKey);
-    const currentCount = previous?.find((item) => item.memoryId === memory.id)?.count ?? 0;
-    const nextReacted = !reacted;
-    const optimisticCount = Math.max(0, currentCount + (nextReacted ? 1 : -1));
-    queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
+    const previousCount = queryClient.getQueryData<MemoryResonanceList>(queryKey)?.find((item) => item.memoryId === memory.id)?.count ?? count;
+    const wasReacted = reactedRef.current;
+    const nextReacted = !wasReacted;
+    const updateCount = (nextCount: number) => queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
       const found = current.some((item) => item.memoryId === memory.id);
       return found
-        ? current.map((item) => item.memoryId === memory.id ? { ...item, count: optimisticCount } : item)
-        : [...current, { memoryId: memory.id, count: optimisticCount }];
+        ? current.map((item) => item.memoryId === memory.id ? { ...item, count: nextCount } : item)
+        : [...current, { memoryId: memory.id, count: nextCount }];
     });
+    updateCount(Math.max(0, previousCount + (nextReacted ? 1 : -1)));
+    reactedRef.current = nextReacted;
     setReacted(nextReacted);
     try {
-      if (reacted) {
+      if (wasReacted) {
         const result = await removeResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
-        queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
-          const exists = current.some((item) => item.memoryId === memory.id);
-          return exists
-            ? current.map((item) => item.memoryId === memory.id ? { ...item, count: result.count } : item)
-            : [...current, { memoryId: memory.id, count: result.count }];
-        });
+        updateCount(result.count);
       } else {
         const result = await addResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
-        queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
-          const exists = current.some((item) => item.memoryId === memory.id);
-          return exists
-            ? current.map((item) => item.memoryId === memory.id ? { ...item, count: result.count } : item)
-            : [...current, { memoryId: memory.id, count: result.count }];
-        });
-        setReacted(true);
+        updateCount(result.count);
       }
       try { localStorage.setItem(`memory-resonance-${memory.id}`, String(nextReacted)); } catch { /* The API remains the source of the count. */ }
-      await queryClient.invalidateQueries({ queryKey });
     } catch {
-      if (previous) queryClient.setQueryData(queryKey, previous);
-      else queryClient.removeQueries({ queryKey, exact: true });
-      setReacted(reacted);
+      updateCount(previousCount);
+      reactedRef.current = wasReacted;
+      setReacted(wasReacted);
+    } finally {
+      reactionLockRef.current = false;
+      setIsReacting(false);
+      void queryClient.invalidateQueries({ queryKey });
     }
   };
   return <article className="memory-card overflow-hidden rounded-[1.15rem] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))]" data-testid={`card-memory-${memory.id}`}>
@@ -514,7 +511,7 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
       </div>
       <div className="p-5"><div className="mb-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.era}</span><span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1">{memory.category}</span></div><p className="serif min-h-[54px] text-base leading-relaxed text-[hsl(var(--foreground))]">「{memory.excerpt}」</p><div className="mt-5 flex items-center justify-between border-t border-[hsl(var(--border))] pt-4 text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.storyteller}</span><span className="flex items-center gap-1 font-semibold text-[hsl(var(--primary))]"><SiteText siteContent={siteContent} id="card.readMore" fallback="閱讀故事" /><ArrowRight size={14} /></span></div></div>
     </button>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border))] px-5 py-3"><div className="flex items-center gap-2"><span className="text-sm text-[hsl(var(--muted-foreground))]" data-testid={`text-resonance-${memory.id}`}>{isLoading ? '讀取按讚數…' : isError ? '按讚數暫時無法載入' : `${count} 個讚`}</span>{isError && <button type="button" onClick={() => void queryClient.invalidateQueries({ queryKey: getGetMemoryResonanceQueryKey() })} className="text-sm underline" data-testid={`button-retry-resonance-${memory.id}`}>再試</button>}</div><div className="flex items-center gap-2"><button type="button" onClick={() => onToggleFavorite(memory.id)} aria-pressed={isFavorite} aria-label={isFavorite ? `從收藏移除：${memory.title}` : `收藏故事：${memory.title}`} className={`btn-outline min-h-11 px-3 text-sm ${isFavorite ? 'text-[hsl(var(--accent))]' : ''}`} data-testid={`button-favorite-${memory.id}`}><Star size={17} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />收藏</button><button type="button" onClick={() => void react()} disabled={addResonance.isPending || removeResonance.isPending} aria-pressed={reacted} aria-label={`${reacted ? '取消按讚' : '按讚'}：${memory.title}${!isLoading && !isError ? `，${count} 個讚` : ''}`} className={`btn-outline min-h-11 px-4 text-sm ${reacted ? 'border-[hsl(var(--secondary))] bg-[hsl(var(--secondary)/.15)]' : ''}`} data-testid={`button-resonate-${memory.id}`}><Heart size={17} fill={reacted ? 'currentColor' : 'none'} aria-hidden="true" />{reacted ? '已按讚' : addResonance.isPending || removeResonance.isPending ? '送出中…' : '我也玩過'}<span className="min-w-5 rounded-full bg-[hsl(var(--muted))] px-1.5 py-0.5 text-center text-xs font-bold" data-testid={`count-resonance-button-${memory.id}`}>{isLoading ? '…' : isError ? '—' : count}</span></button></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border))] px-5 py-3"><div className="flex items-center gap-2"><span className="text-sm text-[hsl(var(--muted-foreground))]" data-testid={`text-resonance-${memory.id}`}>{isLoading ? '讀取按讚數…' : isError ? '按讚數暫時無法載入' : `${count} 個讚`}</span>{isError && <button type="button" onClick={() => void queryClient.invalidateQueries({ queryKey: getGetMemoryResonanceQueryKey() })} className="text-sm underline" data-testid={`button-retry-resonance-${memory.id}`}>再試</button>}</div><div className="flex items-center gap-2"><button type="button" onClick={() => onToggleFavorite(memory.id)} aria-pressed={isFavorite} aria-label={isFavorite ? `從收藏移除：${memory.title}` : `收藏故事：${memory.title}`} className={`btn-outline min-h-11 px-3 text-sm ${isFavorite ? 'text-[hsl(var(--accent))]' : ''}`} data-testid={`button-favorite-${memory.id}`}><Star size={17} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />收藏</button><button type="button" onClick={() => void react()} disabled={isReacting} aria-pressed={reacted} aria-label={`${reacted ? '取消按讚' : '按讚'}：${memory.title}${!isLoading && !isError ? `，${count} 個讚` : ''}`} className={`btn-outline min-h-11 px-4 text-sm ${reacted ? 'border-[hsl(var(--secondary))] bg-[hsl(var(--secondary)/.15)]' : ''}`} data-testid={`button-resonate-${memory.id}`}><Heart size={17} fill={reacted ? 'currentColor' : 'none'} aria-hidden="true" />{reacted ? '已按讚' : '我也玩過'}<span className="min-w-5 rounded-full bg-[hsl(var(--muted))] px-1.5 py-0.5 text-center text-xs font-bold" data-testid={`count-resonance-button-${memory.id}`}>{isLoading ? '…' : isError ? '—' : count}</span></button></div></div>
      {(addResonance.isError || removeResonance.isError) && <p className="px-5 pb-3 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid={`error-resonance-${memory.id}`}>回應沒有更新，請稍後再試。</p>}
   </article>;
 }
@@ -522,9 +519,9 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
 function IndexSection({ memories, siteContent, onOpen, favoriteIds, onToggleFavorite }: { memories: Memory[]; siteContent: SiteContent; onOpen: (memory: Memory) => void; favoriteIds: string[]; onToggleFavorite: (memoryId: string) => void }) {
   const { data: resonance, isLoading: isResonanceLoading, isError: isResonanceError } = useGetMemoryResonance({ query: {
     queryKey: getGetMemoryResonanceQueryKey(),
-    retry: 2,
-    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 3000),
-    refetchInterval: 5000,
+    retry: 1,
+    retryDelay: 250,
+    refetchInterval: 2500,
     refetchOnWindowFocus: true,
   } });
   const totalLikes = resonance?.reduce((total, item) => total + item.count, 0) ?? 0;
