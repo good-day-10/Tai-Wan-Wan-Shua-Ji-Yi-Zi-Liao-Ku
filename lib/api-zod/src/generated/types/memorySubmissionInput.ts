@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MemorySubmissionInputGender } from './memorySubmissionInputGender';
 
 export interface MemorySubmissionInput {
   /**
@@ -27,6 +28,9 @@ export interface MemorySubmissionInput {
      * @maxLength 10000
      */
   story: string;
+  /** @maxLength 120 */
+  name?: string;
+  gender?: MemorySubmissionInputGender;
   /** @maxLength 500 */
   imagePath?: string;
 }

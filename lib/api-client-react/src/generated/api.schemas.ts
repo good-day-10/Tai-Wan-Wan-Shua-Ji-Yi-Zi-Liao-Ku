@@ -83,6 +83,16 @@ export interface MemoryResonanceResult {
   alreadyReacted: boolean;
 }
 
+export type MemorySubmissionInputGender = typeof MemorySubmissionInputGender[keyof typeof MemorySubmissionInputGender];
+
+
+export const MemorySubmissionInputGender = {
+  女性: '女性',
+  男性: '男性',
+  其他: '其他',
+  不透露: '不透露',
+} as const;
+
 export interface MemorySubmissionInput {
   /**
      * @minLength 1
@@ -104,6 +114,9 @@ export interface MemorySubmissionInput {
      * @maxLength 10000
      */
   story: string;
+  /** @maxLength 120 */
+  name?: string;
+  gender?: MemorySubmissionInputGender;
   /** @maxLength 500 */
   imagePath?: string;
 }

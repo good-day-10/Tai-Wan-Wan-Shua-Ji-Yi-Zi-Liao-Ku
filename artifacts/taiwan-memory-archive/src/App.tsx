@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { getArchive as getSharedArchive, getEditorStatus, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
-import { useGetMemoryResonance, useAddMemoryResonance, useSubmitMemoryContribution, useGetPendingMemoryContributions, useApproveMemoryContribution, useRejectMemoryContribution, useRequestArchiveImageUploadUrl, getGetMemoryResonanceQueryKey, getGetPendingMemoryContributionsQueryKey, getGetArchiveQueryKey } from '@workspace/api-client-react';
+import { useGetMemoryResonance, useAddMemoryResonance, useRemoveMemoryResonance, useSubmitMemoryContribution, useGetPendingMemoryContributions, useApproveMemoryContribution, useRejectMemoryContribution, useRequestArchiveImageUploadUrl, getGetMemoryResonanceQueryKey, getGetPendingMemoryContributionsQueryKey, getGetArchiveQueryKey } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
-import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Tablet, Trash2, X, Heart, Upload, Type } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Star, Tablet, Trash2, X, Heart, Upload, Type } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { hasArchiveDraftChanges, hasEditorSessionChanged } from './editor-interactions';
 import { Toaster } from '@/components/ui/toaster';
@@ -223,6 +223,13 @@ function visitorKey() {
   }
 }
 
+function readFavoriteIds(): string[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem('archive-favorite-memory-ids') ?? '[]');
+    return Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [];
+  } catch { return []; }
+}
+
 export function loadArchive(): ArchiveData {
   try {
     const stored = localStorage.getItem('taiwan-memory-archive');
@@ -320,7 +327,7 @@ function customPageHref(slug: string): string {
   return `${base}/page/${slug}`;
 }
 
-function Header({ siteContent, auth }: { siteContent: SiteContent; auth: ArchiveAuthState }) {
+function Header({ siteContent, auth, favoriteCount = 0 }: { siteContent: SiteContent; auth: ArchiveAuthState; favoriteCount?: number }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="masthead relative z-30">
@@ -340,6 +347,7 @@ function Header({ siteContent, auth }: { siteContent: SiteContent; auth: Archive
       {menuOpen && <nav className="absolute right-5 top-[76px] w-[min(360px,calc(100vw-2.5rem))] rounded-2xl border border-white/15 bg-[hsl(var(--primary)/.98)] p-3 shadow-2xl backdrop-blur" aria-label="網站導覽">
         <p className="px-3 pb-2 pt-1 text-[10px] font-bold tracking-[.18em] text-[hsl(var(--accent))]">EXPLORE / 導覽</p>
         <a href={`${import.meta.env.BASE_URL}#memories`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid="link-mobile-memories"><SiteText siteContent={siteContent} id="nav.memories" fallback="記憶索引" /><ArrowRight size={15} className="text-white/40" /></a>
+        <a href={`${import.meta.env.BASE_URL}favorites`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid="link-mobile-favorites"><span className="flex items-center gap-2"><Star size={16} aria-hidden="true" />我的收藏{favoriteCount > 0 ? `（${favoriteCount}）` : ''}</span><ArrowRight size={15} className="text-white/40" /></a>
         <a href={`${import.meta.env.BASE_URL}#contribute`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid="link-mobile-contribute"><span>分享一段記憶</span><ArrowRight size={15} className="text-white/40" /></a>
         <a href={`${import.meta.env.BASE_URL}#about`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid="link-mobile-about"><SiteText siteContent={siteContent} id="nav.about" fallback="關於資料庫" /><ArrowRight size={15} className="text-white/40" /></a>
         {siteContent.pages.length > 0 && <div className="my-2 border-t border-white/10 pt-2"><p className="px-3 pb-1 text-[10px] font-bold tracking-[.18em] text-white/40">PAGES / 自訂頁面</p>{siteContent.pages.map((page) => <a key={page.id} href={customPageHref(page.slug)} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-white/85 transition hover:bg-white/10" data-testid={`link-custom-page-${page.slug}`}><span className="flex min-w-0 items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--secondary))]" /><span className="truncate">{page.title}</span></span><ArrowRight size={15} className="text-white/40" /></a>)}</div>}
@@ -436,21 +444,27 @@ function Hero({ introduction, siteContent, onExplore }: { introduction: string; 
   </section>;
 }
 
-function MemoryCard({ memory, siteContent, onOpen }: { memory: Memory; siteContent: SiteContent; onOpen: (memory: Memory) => void }) {
+function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite }: { memory: Memory; siteContent: SiteContent; onOpen: (memory: Memory) => void; isFavorite: boolean; onToggleFavorite: (memoryId: string) => void }) {
   const images = getMemoryImages(memory);
-  const { data: resonance, isLoading, isError } = useGetMemoryResonance({ query: { queryKey: getGetMemoryResonanceQueryKey() } });
+  const { data: resonance, isLoading, isError } = useGetMemoryResonance({ query: { queryKey: getGetMemoryResonanceQueryKey(), retry: false } });
   const queryClient = useQueryClient();
   const addResonance = useAddMemoryResonance();
+  const removeResonance = useRemoveMemoryResonance();
   const [reacted, setReacted] = useState(() => {
     try { return localStorage.getItem(`memory-resonance-${memory.id}`) === 'true'; } catch { return false; }
   });
   const count = resonance?.find((item) => item.memoryId === memory.id)?.count ?? 0;
   const react = async () => {
-    if (reacted || addResonance.isPending) return;
+    if (addResonance.isPending || removeResonance.isPending) return;
     try {
-      await addResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
-      try { localStorage.setItem(`memory-resonance-${memory.id}`, 'true'); } catch { /* API keeps the reaction persistent. */ }
-      setReacted(true);
+      if (reacted) {
+        await removeResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
+      } else {
+        await addResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
+      }
+      const nextReacted = !reacted;
+      try { localStorage.setItem(`memory-resonance-${memory.id}`, String(nextReacted)); } catch { /* The API remains the source of the count. */ }
+      setReacted(nextReacted);
       await queryClient.invalidateQueries({ queryKey: getGetMemoryResonanceQueryKey() });
     } catch { /* Error remains visible on the card. */ }
   };
@@ -464,12 +478,12 @@ function MemoryCard({ memory, siteContent, onOpen }: { memory: Memory; siteConte
       </div>
       <div className="p-5"><div className="mb-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.era}</span><span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1">{memory.category}</span></div><p className="serif min-h-[54px] text-base leading-relaxed text-[hsl(var(--foreground))]">「{memory.excerpt}」</p><div className="mt-5 flex items-center justify-between border-t border-[hsl(var(--border))] pt-4 text-xs text-[hsl(var(--muted-foreground))]"><span>{memory.storyteller}</span><span className="flex items-center gap-1 font-semibold text-[hsl(var(--primary))]"><SiteText siteContent={siteContent} id="card.readMore" fallback="閱讀故事" /><ArrowRight size={14} /></span></div></div>
     </button>
-    <div className="flex items-center justify-between border-t border-[hsl(var(--border))] px-5 py-3"><span className="text-sm text-[hsl(var(--muted-foreground))]" data-testid={`text-resonance-${memory.id}`}>{isLoading ? '正在讀取回應…' : isError ? '回應暫時無法載入' : `已有 ${count} 人也玩過`}</span><button type="button" onClick={() => void react()} disabled={reacted || addResonance.isPending} aria-pressed={reacted} className="btn-outline min-h-11 px-4 text-sm disabled:opacity-65" data-testid={`button-resonate-${memory.id}`}><Heart size={17} aria-hidden="true" />{reacted ? '我也玩過了' : addResonance.isPending ? '送出中…' : '我也玩過！'}</button></div>
-    {addResonance.isError && <p className="px-5 pb-3 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid={`error-resonance-${memory.id}`}>回應沒有送出，請稍後再試。</p>}
+     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border))] px-5 py-3"><div className="flex items-center gap-2"><span className="text-sm text-[hsl(var(--muted-foreground))]" data-testid={`text-resonance-${memory.id}`}>{isLoading ? '正在讀取回應…' : isError ? '回應暫時無法載入' : `已有 ${count} 人也玩過`}</span>{isError && <button type="button" onClick={() => void queryClient.invalidateQueries({ queryKey: getGetMemoryResonanceQueryKey() })} className="text-sm underline" data-testid={`button-retry-resonance-${memory.id}`}>再試</button>}</div><div className="flex items-center gap-2"><button type="button" onClick={() => onToggleFavorite(memory.id)} aria-pressed={isFavorite} aria-label={isFavorite ? `從收藏移除：${memory.title}` : `收藏故事：${memory.title}`} className={`btn-outline min-h-11 px-3 text-sm ${isFavorite ? 'text-[hsl(var(--accent))]' : ''}`} data-testid={`button-favorite-${memory.id}`}><Star size={17} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />收藏</button><button type="button" onClick={() => void react()} disabled={addResonance.isPending || removeResonance.isPending} aria-pressed={reacted} className={`btn-outline min-h-11 px-4 text-sm ${reacted ? 'border-[hsl(var(--secondary))] bg-[hsl(var(--secondary)/.15)]' : ''}`} data-testid={`button-resonate-${memory.id}`}><Heart size={17} fill={reacted ? 'currentColor' : 'none'} aria-hidden="true" />{reacted ? '取消我玩過' : addResonance.isPending || removeResonance.isPending ? '送出中…' : '我也玩過！'}</button></div></div>
+     {(addResonance.isError || removeResonance.isError) && <p className="px-5 pb-3 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid={`error-resonance-${memory.id}`}>回應沒有更新，請稍後再試。</p>}
   </article>;
 }
 
-function IndexSection({ memories, siteContent, onOpen }: { memories: Memory[]; siteContent: SiteContent; onOpen: (memory: Memory) => void }) {
+function IndexSection({ memories, siteContent, onOpen, favoriteIds, onToggleFavorite }: { memories: Memory[]; siteContent: SiteContent; onOpen: (memory: Memory) => void; favoriteIds: string[]; onToggleFavorite: (memoryId: string) => void }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
   const filtered = useMemo(() => memories.filter((memory) => {
@@ -485,8 +499,17 @@ function IndexSection({ memories, siteContent, onOpen }: { memories: Memory[]; s
       <div className="relative max-w-sm flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={sitePlainText(siteContent, 'index.searchPlaceholder', '搜尋地點、人物或記憶…')} className="input-archive search-input" aria-label="搜尋記憶" data-testid="input-search-memories" /></div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="記憶分類篩選">{categories.map((item) => <button key={item} aria-pressed={category === item} onClick={() => setCategory(item)} className={`filter-chip stamp-chip rounded-lg border px-3 py-2 text-sm font-semibold ${category === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]'}`} data-testid={`button-filter-${item}`}><SiteText siteContent={siteContent} id={`category.${item}`} fallback={item} /></button>)}</div>
     </div>
-    {filtered.length > 0 ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((memory, index) => <div key={memory.id} className={`fade-up delay-${Math.min(index + 1, 4)}`}><MemoryCard memory={memory} siteContent={siteContent} onOpen={onOpen} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] py-20 text-center"><Search className="mx-auto mb-4 text-[hsl(var(--secondary))]" size={30} /><SiteText siteContent={siteContent} id="index.emptyTitle" fallback="還沒有找到這段記憶" className="serif text-xl" as="p" /><SiteText siteContent={siteContent} id="index.emptyBody" fallback="換個詞試試，或把一個新故事放進資料庫。" className="mt-2 text-sm text-[hsl(var(--muted-foreground))]" as="p" /></div>}
+    {filtered.length > 0 ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((memory, index) => <div key={memory.id} className={`fade-up delay-${Math.min(index + 1, 4)}`}><MemoryCard memory={memory} siteContent={siteContent} onOpen={onOpen} isFavorite={favoriteIds.includes(memory.id)} onToggleFavorite={onToggleFavorite} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-[hsl(var(--border))] py-20 text-center"><Search className="mx-auto mb-4 text-[hsl(var(--secondary))]" size={30} /><SiteText siteContent={siteContent} id="index.emptyTitle" fallback="還沒有找到這段記憶" className="serif text-xl" as="p" /><SiteText siteContent={siteContent} id="index.emptyBody" fallback="換個詞試試，或把一個新故事放進資料庫。" className="mt-2 text-sm text-[hsl(var(--muted-foreground))]" as="p" /></div>}
     <p className="mt-7 text-xs text-[hsl(var(--muted-foreground))]" data-testid="text-memory-count"><SiteText siteContent={siteContent} id="index.count" fallback="目前收藏" /> {filtered.length} / {memories.length} 則記憶</p>
+  </section>;
+}
+
+function FavoritesSection({ memories, siteContent, favoriteIds, onOpen, onToggleFavorite }: { memories: Memory[]; siteContent: SiteContent; favoriteIds: string[]; onOpen: (memory: Memory) => void; onToggleFavorite: (memoryId: string) => void }) {
+  const favorites = memories.filter((memory) => favoriteIds.includes(memory.id));
+  return <section className="mx-auto min-h-[65dvh] max-w-7xl px-5 py-16 lg:px-8 lg:py-24">
+    <a href={import.meta.env.BASE_URL} className="btn-outline inline-flex min-h-11 items-center gap-2 px-4" data-testid="link-back-from-favorites"><ArrowRight className="rotate-180" size={16} />返回記憶首頁</a>
+    <div className="mt-10 flex items-center gap-3"><Star size={26} className="text-[hsl(var(--accent))]" fill="currentColor" /><div><p className="section-kicker eyebrow">SAVED MEMORIES / 個人收藏</p><h1 className="display-title mt-2 text-4xl font-bold">我的收藏</h1></div></div>
+    {favorites.length ? <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{favorites.map((memory) => <MemoryCard key={memory.id} memory={memory} siteContent={siteContent} onOpen={onOpen} isFavorite onToggleFavorite={onToggleFavorite} />)}</div> : <div className="mt-9 rounded-2xl border border-dashed border-[hsl(var(--border))] py-16 text-center"><Star className="mx-auto mb-4 text-[hsl(var(--accent))]" size={30} /><p className="serif text-xl font-semibold">還沒有收藏故事</p><p className="mt-2 text-base text-[hsl(var(--muted-foreground))]">在故事卡片上點選星星，就會收錄在這一頁。</p><a href={`${import.meta.env.BASE_URL}#memories`} className="btn-primary mt-5 inline-flex min-h-11" data-testid="link-browse-from-favorites">去找故事</a></div>}
   </section>;
 }
 
@@ -497,6 +520,8 @@ function ContributionForm({ auth }: { auth: ArchiveAuthState }) {
   const [category, setCategory] = useState(categories[1]);
   const [era, setEra] = useState('');
   const [story, setStory] = useState('');
+  const [name, setName] = useState('');
+  const [gender, setGender] = useState<'' | '女性' | '男性' | '其他' | '不透露'>('');
   const [imagePath, setImagePath] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [fileName, setFileName] = useState('');
@@ -525,9 +550,9 @@ function ContributionForm({ auth }: { auth: ArchiveAuthState }) {
     event.preventDefault();
     setReceipt('');
     try {
-      const result = await submitContribution.mutateAsync({ data: { title: title.trim(), category, era: era.trim(), story: story.trim(), ...(imagePath ? { imagePath } : {}) } });
+      const result = await submitContribution.mutateAsync({ data: { title: title.trim(), category, era: era.trim(), story: story.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(gender ? { gender } : {}), ...(imagePath ? { imagePath } : {}) } });
       setReceipt(`已收到「${title.trim()}」，目前狀態：待編輯者審核。編號 ${result.id}`);
-      setTitle(''); setCategory(categories[1]); setEra(''); setStory(''); setImagePath(''); setFileName('');
+      setTitle(''); setCategory(categories[1]); setEra(''); setStory(''); setName(''); setGender(''); setImagePath(''); setFileName('');
       event.currentTarget.reset();
     } catch { /* mutation state renders the error */ }
   };
@@ -539,8 +564,11 @@ function ContributionForm({ auth }: { auth: ArchiveAuthState }) {
           <label className="text-base font-semibold sm:col-span-2">故事標題<input required maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} className="input-archive mt-2 text-base" data-testid="input-contribution-title" /></label>
           <label className="text-base font-semibold">記憶分類<select value={category} onChange={(event) => setCategory(event.target.value)} className="input-archive mt-2 text-base" data-testid="select-contribution-category">{categories.slice(1).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <label className="text-base font-semibold">大約年代<input required maxLength={80} placeholder="例如：民國七十年代" value={era} onChange={(event) => setEra(event.target.value)} className="input-archive mt-2 text-base" data-testid="input-contribution-era" /></label>
+          <label className="text-base font-semibold">姓名（選填）<input maxLength={120} value={name} onChange={(event) => setName(event.target.value)} className="input-archive mt-2 text-base" autoComplete="name" data-testid="input-contribution-name" /></label>
+          <label className="text-base font-semibold">性別（選填）<select value={gender} onChange={(event) => setGender(event.target.value as typeof gender)} className="input-archive mt-2 text-base" data-testid="select-contribution-gender"><option value="">不填寫</option><option value="女性">女性</option><option value="男性">男性</option><option value="其他">其他</option><option value="不透露">不透露</option></select></label>
           <label className="text-base font-semibold sm:col-span-2">故事內容<textarea required minLength={10} maxLength={10000} rows={7} value={story} onChange={(event) => setStory(event.target.value)} className="input-archive mt-2 resize-y text-base leading-relaxed" aria-describedby="contribution-story-help" data-testid="textarea-contribution-story" /><span id="contribution-story-help" className="mt-1 block text-sm font-normal text-[hsl(var(--muted-foreground))]">至少 10 個字，想想當時和誰一起、在哪裡、發生什麼事。</span></label>
         </div>
+        <p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">姓名與性別都是選填，僅供編輯者審核投稿，不會公開顯示。</p>
         <div className="mt-5 rounded-2xl border border-dashed border-[hsl(var(--border))] p-4">
           <label className="flex cursor-pointer items-center gap-3 text-base font-semibold"><Upload size={19} aria-hidden="true" />附上一張回憶照片（選填）<input type="file" accept="image/jpeg,image/png,image/webp" disabled={!auth.isSignedIn || uploadUrl.isPending} onChange={(event) => void choosePhoto(event)} className="sr-only" aria-label="選擇照片上傳" data-testid="input-contribution-photo" /></label>
           {!auth.isSignedIn && <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">登入後即可選擇照片；文字投稿不受影響。</p>}
@@ -1114,7 +1142,7 @@ function PendingContributionReview({ archive, onArchiveUpdated }: { archive: Arc
     {pending.isLoading ? <div className="mt-5 space-y-3" role="status" aria-label="正在載入投稿"><div className="h-20 animate-pulse rounded-xl bg-[hsl(var(--muted))]" /><div className="h-20 animate-pulse rounded-xl bg-[hsl(var(--muted))]" /></div>
       : pending.isError ? <div className="mt-5 rounded-xl border border-[hsl(var(--destructive)/.3)] p-4" role="alert"><p>待審清單暫時無法載入。</p><button type="button" onClick={() => void pending.refetch()} className="btn-outline mt-3 min-h-11" data-testid="button-retry-pending">再試一次</button></div>
       : pending.data?.length ? <ul className="mt-5 space-y-4">{pending.data.map((item) => <li key={item.id} className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5" data-testid={`card-pending-${item.id}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="serif text-xl font-bold">{item.title}</h3><p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">{item.category}　／　{item.era}　／　送出於 {new Date(item.createdAt).toLocaleDateString('zh-TW')}</p></div><span className="rounded-full bg-[hsl(var(--accent)/.2)] px-3 py-1 text-sm font-semibold">待審核</span></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="serif text-xl font-bold">{item.title}</h3><p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">{item.category}　／　{item.era}　／　送出於 {new Date(item.createdAt).toLocaleDateString('zh-TW')}</p>{(item.name || item.gender) && <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">投稿者提供：{item.name || '未填姓名'}　／　{item.gender || '未填性別'}</p>}</div><span className="rounded-full bg-[hsl(var(--accent)/.2)] px-3 py-1 text-sm font-semibold">待審核</span></div>
         <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed">{item.story}</p>
         {item.imagePath && <a className="mt-3 inline-block text-sm font-semibold text-[hsl(var(--primary))] underline" href={`/api/storage${item.imagePath}`} target="_blank" rel="noreferrer" data-testid={`link-pending-image-${item.id}`}>查看附上的照片</a>}
         <div className="mt-4 flex flex-wrap gap-3"><button type="button" disabled={approve.isPending || reject.isPending} onClick={() => void approveSubmission(item.id)} className="btn-primary min-h-11" data-testid={`button-approve-${item.id}`}>核准並加入資料庫</button><button type="button" disabled={approve.isPending || reject.isPending} onClick={() => void rejectSubmission(item.id)} className="btn-outline min-h-11" data-testid={`button-reject-${item.id}`}>退回投稿</button></div>
@@ -1313,6 +1341,21 @@ export function ArchiveHome({ auth }: { auth: ArchiveAuthState }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const sharedStatusRef = useRef<SharedArchiveStatus>('loading');
   const [detail, setDetail] = useState<Memory | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(readFavoriteIds);
+  useEffect(() => {
+    const syncFavorites = (event: StorageEvent) => {
+      if (event.key === 'archive-favorite-memory-ids') setFavoriteIds(readFavoriteIds());
+    };
+    window.addEventListener('storage', syncFavorites);
+    return () => window.removeEventListener('storage', syncFavorites);
+  }, []);
+  const toggleFavorite = (memoryId: string) => {
+    setFavoriteIds((current) => {
+      const next = current.includes(memoryId) ? current.filter((id) => id !== memoryId) : [...current, memoryId];
+      try { localStorage.setItem('archive-favorite-memory-ids', JSON.stringify(next)); } catch { /* Favorite storage is local to this browser. */ }
+      return next;
+    });
+  };
   const [gateOpen, setGateOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const editorSessionIdRef = useRef<string | null>(null);
@@ -1450,9 +1493,10 @@ export function ArchiveHome({ auth }: { auth: ArchiveAuthState }) {
   const explore = () => document.getElementById('memories')?.scrollIntoView({ behavior: 'smooth' });
   const pageSlug = location.startsWith('/page/') ? decodeURIComponent(location.slice('/page/'.length).split('/')[0]) : '';
   const activePage = archive.siteContent.pages.find((page) => page.slug === pageSlug);
+  const isFavoritesPage = location === '/favorites';
   if (pageSlug && !activePage) return <NotFound />;
   if (activePage) return <>{sessionNotice}<CustomPageView page={activePage} siteContent={archive.siteContent} auth={auth} onEdit={openEditorGate} sharedStatus={sharedStatus} onRetry={retrySharedArchive} />{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} onArchiveUpdated={(updated) => { setArchive(updated); storeArchive(updated); }} />}</>;
-  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} auth={auth} /><main><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} /><ContributionForm auth={auth} /><AboutSection siteContent={archive.siteContent} /></main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} onArchiveUpdated={(updated) => { setArchive(updated); storeArchive(updated); }} />}</div>;
+  return <div className="archive-shell texture"><SharedArchiveNotice status={sharedStatus} onRetry={retrySharedArchive} />{sessionNotice}<Header siteContent={archive.siteContent} auth={auth} favoriteCount={favoriteIds.length} /><main>{isFavoritesPage ? <FavoritesSection memories={archive.memories} siteContent={archive.siteContent} favoriteIds={favoriteIds} onOpen={setDetail} onToggleFavorite={toggleFavorite} /> : <><Hero introduction={archive.introduction} siteContent={archive.siteContent} onExplore={explore} /><IndexSection memories={archive.memories} siteContent={archive.siteContent} onOpen={setDetail} favoriteIds={favoriteIds} onToggleFavorite={toggleFavorite} /><ContributionForm auth={auth} /><AboutSection siteContent={archive.siteContent} /></>}</main><Footer siteContent={archive.siteContent} onEdit={openEditorGate} />{detail && <MemoryModal memory={detail} siteContent={archive.siteContent} onClose={() => setDetail(null)} />}{gateOpen && <PasswordGate auth={auth} onClose={closeEditorGate} onUnlock={beginEditing} />}{editing && <Editor archive={archive} initialDraft={recoveryDraft} onDraftChange={persistRecoveryDraft} onSave={saveArchive} onCancel={closeEditor} onLock={closeEditor} onReloadLatest={loadLatestArchiveForConflictResolution} onArchiveUpdated={(updated) => { setArchive(updated); storeArchive(updated); }} />}</div>;
 }
 
 function Home() {
@@ -1462,7 +1506,7 @@ function Home() {
 
 function Router() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  return <ErrorBoundary><Switch><Route path="/sign-in/*?" component={() => <div className="min-h-dvh bg-[hsl(var(--muted))] p-5 sm:p-10"><SignIn routing="path" path={`${base}/sign-in`} signUpUrl={`${base}/sign-up`} fallbackRedirectUrl={base || '/'} /></div>} /><Route path="/sign-up/*?" component={() => <div className="min-h-dvh bg-[hsl(var(--muted))] p-5 sm:p-10"><SignUp routing="path" path={`${base}/sign-up`} signInUrl={`${base}/sign-in`} fallbackRedirectUrl={base || '/'} /></div>} /><Route path="/" component={Home} /><Route path="/page/:slug" component={Home} /><Route component={NotFound} /></Switch></ErrorBoundary>;
+  return <ErrorBoundary><Switch><Route path="/sign-in/*?" component={() => <div className="min-h-dvh bg-[hsl(var(--muted))] p-5 sm:p-10"><SignIn routing="path" path={`${base}/sign-in`} signUpUrl={`${base}/sign-up`} fallbackRedirectUrl={base || '/'} /></div>} /><Route path="/sign-up/*?" component={() => <div className="min-h-dvh bg-[hsl(var(--muted))] p-5 sm:p-10"><SignUp routing="path" path={`${base}/sign-up`} signInUrl={`${base}/sign-in`} fallbackRedirectUrl={base || '/'} /></div>} /><Route path="/" component={Home} /><Route path="/favorites" component={Home} /><Route path="/page/:slug" component={Home} /><Route component={NotFound} /></Switch></ErrorBoundary>;
 }
 
 function App() {

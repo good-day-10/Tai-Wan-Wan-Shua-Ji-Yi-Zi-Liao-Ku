@@ -639,6 +639,95 @@ export const useAddMemoryResonance = <TError = ErrorType<void>,
       return useMutation(getAddMemoryResonanceMutationOptions(options));
     }
 
+export const getRemoveMemoryResonanceUrl = (memoryId: string,) => {
+
+
+
+
+  return `/api/archive/resonance/${memoryId}`
+}
+
+/**
+ * @summary Remove one visitor resonance for a memory
+ */
+export const removeMemoryResonance = async (memoryId: string,
+    memoryResonanceInput: MemoryResonanceInput, options?: Parameters<typeof customFetch>[1]): Promise<MemoryResonanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MemoryResonanceResult>(getRemoveMemoryResonanceUrl(memoryId),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memoryResonanceInput)
+  }
+);}
+
+
+
+
+
+export const getRemoveMemoryResonanceMutationKey = () => ['removeMemoryResonance'] as const;
+
+export const getRemoveMemoryResonanceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMemoryResonance>>, TError,RemoveMemoryResonanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMemoryResonance>>, TError,RemoveMemoryResonanceMutationVariables, TContext> => {
+
+const mutationKey = getRemoveMemoryResonanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMemoryResonance>>, RemoveMemoryResonanceMutationVariables> = (props) => {
+          const {memoryId,data} = props ?? {};
+
+          return  removeMemoryResonance(memoryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMemoryResonanceMutationResult = NonNullable<Awaited<ReturnType<typeof removeMemoryResonance>>>
+    export type RemoveMemoryResonanceMutationBody = BodyType<MemoryResonanceInput>
+    export type RemoveMemoryResonanceMutationError = ErrorType<void>
+    export type RemoveMemoryResonanceMutationVariables = {memoryId: string;data: BodyType<MemoryResonanceInput>}
+
+    /**
+ * @summary Remove one visitor resonance for a memory
+ */
+export const useRemoveMemoryResonance = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMemoryResonance>>, TError,RemoveMemoryResonanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeMemoryResonance>>,
+        TError,
+        RemoveMemoryResonanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveMemoryResonanceMutationOptions(options));
+    }
+
 export const getSubmitMemoryContributionUrl = () => {
 
 

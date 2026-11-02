@@ -390,6 +390,33 @@ export const AddMemoryResonanceResponse = zod.object({
 
 
 /**
+ * @summary Remove one visitor resonance for a memory
+ */
+export const RemoveMemoryResonanceParams = zod.object({
+  "memoryId": zod.coerce.string()
+})
+
+export const removeMemoryResonanceBodyVisitorIdMin = 8;
+export const removeMemoryResonanceBodyVisitorIdMax = 80;
+
+
+
+export const RemoveMemoryResonanceBody = zod.object({
+  "visitorId": zod.string().min(removeMemoryResonanceBodyVisitorIdMin).max(removeMemoryResonanceBodyVisitorIdMax)
+})
+
+export const removeMemoryResonanceResponseCountMin = 0;
+
+
+
+export const RemoveMemoryResonanceResponse = zod.object({
+  "memoryId": zod.string(),
+  "count": zod.number().int().min(removeMemoryResonanceResponseCountMin),
+  "alreadyReacted": zod.boolean()
+})
+
+
+/**
  * @summary Submit a memory for editorial review
  */
 export const submitMemoryContributionBodyTitleMax = 160;
@@ -401,6 +428,8 @@ export const submitMemoryContributionBodyEraMax = 80;
 export const submitMemoryContributionBodyStoryMin = 10;
 export const submitMemoryContributionBodyStoryMax = 10000;
 
+export const submitMemoryContributionBodyNameMax = 120;
+
 export const submitMemoryContributionBodyImagePathMax = 500;
 
 
@@ -410,6 +439,8 @@ export const SubmitMemoryContributionBody = zod.object({
   "category": zod.string().min(1).max(submitMemoryContributionBodyCategoryMax),
   "era": zod.string().min(1).max(submitMemoryContributionBodyEraMax),
   "story": zod.string().min(submitMemoryContributionBodyStoryMin).max(submitMemoryContributionBodyStoryMax),
+  "name": zod.string().max(submitMemoryContributionBodyNameMax).optional(),
+  "gender": zod.enum(['女性', '男性', '其他', '不透露']).optional(),
   "imagePath": zod.string().max(submitMemoryContributionBodyImagePathMax).optional()
 })
 
@@ -431,6 +462,8 @@ export const getPendingMemoryContributionsResponseOneEraMax = 80;
 export const getPendingMemoryContributionsResponseOneStoryMin = 10;
 export const getPendingMemoryContributionsResponseOneStoryMax = 10000;
 
+export const getPendingMemoryContributionsResponseOneNameMax = 120;
+
 export const getPendingMemoryContributionsResponseOneImagePathMax = 500;
 
 
@@ -440,6 +473,8 @@ export const GetPendingMemoryContributionsResponseItem = zod.object({
   "category": zod.string().min(1).max(getPendingMemoryContributionsResponseOneCategoryMax),
   "era": zod.string().min(1).max(getPendingMemoryContributionsResponseOneEraMax),
   "story": zod.string().min(getPendingMemoryContributionsResponseOneStoryMin).max(getPendingMemoryContributionsResponseOneStoryMax),
+  "name": zod.string().max(getPendingMemoryContributionsResponseOneNameMax).optional(),
+  "gender": zod.enum(['女性', '男性', '其他', '不透露']).optional(),
   "imagePath": zod.string().max(getPendingMemoryContributionsResponseOneImagePathMax).optional()
 }).and(zod.object({
   "id": zod.string(),

@@ -6,7 +6,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import {
   AddMemoryResonanceBody, AddMemoryResonanceResponse, ApproveMemoryContributionBody,
   GetMemoryResonanceResponse, GetPendingMemoryContributionsResponse,
-  RejectMemoryContributionResponse, RequestArchiveImageUploadUrlBody,
+  RemoveMemoryResonanceBody, RemoveMemoryResonanceResponse, RejectMemoryContributionResponse, RequestArchiveImageUploadUrlBody,
   RequestArchiveImageUploadUrlResponse, SubmitMemoryContributionBody,
   SubmitMemoryContributionResponse,
 } from "@workspace/api-zod";
@@ -49,6 +49,19 @@ router.post("/archive/resonance/:memoryId", async (req, res) => {
   const [inserted] = await db.insert(archiveReactionsTable).values({ memoryId: req.params.memoryId, visitorId: parsed.data.visitorId }).onConflictDoNothing().returning();
   const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(archiveReactionsTable).where(eq(archiveReactionsTable.memoryId, req.params.memoryId));
   res.json(AddMemoryResonanceResponse.parse({ memoryId: req.params.memoryId, count: row?.count ?? 0, alreadyReacted: !inserted }));
+});
+
+router.delete("/archive/resonance/:memoryId", async (req, res) => {
+  const parsed = RemoveMemoryResonanceBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid reaction" }); return; }
+  await db.delete(archiveReactionsTable).where(and(
+    eq(archiveReactionsTable.memoryId, req.params.memoryId),
+    eq(archiveReactionsTable.visitorId, parsed.data.visitorId),
+  ));
+  const [row] = await db.select({ count: sql<number>`count(*)::int` })
+    .from(archiveReactionsTable)
+    .where(eq(archiveReactionsTable.memoryId, req.params.memoryId));
+  res.json(RemoveMemoryResonanceResponse.parse({ memoryId: req.params.memoryId, count: row?.count ?? 0 }));
 });
 
 router.post("/archive/submissions", async (req, res) => {

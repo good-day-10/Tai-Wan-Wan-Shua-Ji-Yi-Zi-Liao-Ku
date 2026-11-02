@@ -16,6 +16,8 @@ export const archiveSubmissionsTable = pgTable("archive_submissions", {
   category: text("category").notNull(),
   era: text("era").notNull(),
   story: text("story").notNull(),
+    name: text("name"),
+    gender: text("gender"),
   imagePath: text("image_path"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

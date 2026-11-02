@@ -20,6 +20,7 @@ export * from './memoryResonanceList';
 export * from './memoryResonanceResult';
 export * from './memorySubmission';
 export * from './memorySubmissionInput';
+export * from './memorySubmissionInputGender';
 export * from './memorySubmissionReceipt';
 export * from './memorySubmissionReceiptStatus';
 export * from './memorySubmissionStatus';
