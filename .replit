@@ -27,3 +27,6 @@ packages = ["glib", "nss", "nspr", "atk", "at-spi2-atk", "cups", "dbus", "libdrm
 
 [userenv.shared]
 ARCHIVE_OWNER_EMAIL = "kai0226@shininglife-edu.com"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-2dfadc01-b2c0-48e0-8eb9-155cd609d956"
