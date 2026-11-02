@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { getArchive as getSharedArchive, getEditorStatus, saveArchive as saveSharedArchive, unlockEditor } from '@workspace/api-client-react';
-import { useGetMemoryResonance, useAddMemoryResonance, useRemoveMemoryResonance, useSubmitMemoryContribution, useGetPendingMemoryContributions, useApproveMemoryContribution, useRejectMemoryContribution, useRequestArchiveImageUploadUrl, getGetMemoryResonanceQueryKey, getGetPendingMemoryContributionsQueryKey, getGetArchiveQueryKey } from '@workspace/api-client-react';
+import { useGetMemoryResonance, useAddMemoryResonance, useRemoveMemoryResonance, useSubmitMemoryContribution, useGetPendingMemoryContributions, useApproveMemoryContribution, useRejectMemoryContribution, useRequestArchiveImageUploadUrl, getGetMemoryResonanceQueryKey, getGetPendingMemoryContributionsQueryKey, getGetArchiveQueryKey, type MemoryResonanceList } from '@workspace/api-client-react';
 import { ClerkProvider, SignIn, SignUp, UserButton, useAuth } from '@clerk/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, Eye, GripVertical, ImagePlus, Layers3, LayoutTemplate, LoaderCircle, LockKeyhole, MapPin, Menu, Monitor, Move, Plus, RefreshCw, Search, Settings2, ShieldCheck, Smartphone, Sparkles, Star, Tablet, Trash2, X, Heart, Upload, Type } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -447,7 +447,13 @@ function Hero({ introduction, siteContent, onExplore }: { introduction: string; 
 
 function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite }: { memory: Memory; siteContent: SiteContent; onOpen: (memory: Memory) => void; isFavorite: boolean; onToggleFavorite: (memoryId: string) => void }) {
   const images = getMemoryImages(memory);
-  const { data: resonance, isLoading, isError } = useGetMemoryResonance({ query: { queryKey: getGetMemoryResonanceQueryKey(), retry: false } });
+  const { data: resonance, isLoading, isError } = useGetMemoryResonance({ query: {
+    queryKey: getGetMemoryResonanceQueryKey(),
+    retry: 2,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 3000),
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  } });
   const queryClient = useQueryClient();
   const addResonance = useAddMemoryResonance();
   const removeResonance = useRemoveMemoryResonance();
@@ -457,17 +463,45 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
   const count = resonance?.find((item) => item.memoryId === memory.id)?.count ?? 0;
   const react = async () => {
     if (addResonance.isPending || removeResonance.isPending) return;
+    const queryKey = getGetMemoryResonanceQueryKey();
+    await queryClient.cancelQueries({ queryKey });
+    const previous = queryClient.getQueryData<MemoryResonanceList>(queryKey);
+    const currentCount = previous?.find((item) => item.memoryId === memory.id)?.count ?? 0;
+    const nextReacted = !reacted;
+    const optimisticCount = Math.max(0, currentCount + (nextReacted ? 1 : -1));
+    queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
+      const found = current.some((item) => item.memoryId === memory.id);
+      return found
+        ? current.map((item) => item.memoryId === memory.id ? { ...item, count: optimisticCount } : item)
+        : [...current, { memoryId: memory.id, count: optimisticCount }];
+    });
+    setReacted(nextReacted);
     try {
       if (reacted) {
-        await removeResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
+        const result = await removeResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
+        queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
+          const exists = current.some((item) => item.memoryId === memory.id);
+          return exists
+            ? current.map((item) => item.memoryId === memory.id ? { ...item, count: result.count } : item)
+            : [...current, { memoryId: memory.id, count: result.count }];
+        });
       } else {
-        await addResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
+        const result = await addResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
+        queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
+          const exists = current.some((item) => item.memoryId === memory.id);
+          return exists
+            ? current.map((item) => item.memoryId === memory.id ? { ...item, count: result.count } : item)
+            : [...current, { memoryId: memory.id, count: result.count }];
+        });
+        setReacted(true);
       }
-      const nextReacted = !reacted;
       try { localStorage.setItem(`memory-resonance-${memory.id}`, String(nextReacted)); } catch { /* The API remains the source of the count. */ }
-      setReacted(nextReacted);
-      await queryClient.invalidateQueries({ queryKey: getGetMemoryResonanceQueryKey() });
-    } catch { /* Error remains visible on the card. */ }
+      await queryClient.invalidateQueries({ queryKey });
+    } catch {
+      if (previous) queryClient.setQueryData(queryKey, previous);
+      else queryClient.removeQueries({ queryKey, exact: true });
+      setReacted(reacted);
+    }
   };
   return <article className="memory-card overflow-hidden rounded-[1.15rem] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))]" data-testid={`card-memory-${memory.id}`}>
     <button onClick={() => onOpen(memory)} className="block w-full text-left" data-testid={`button-open-memory-${memory.id}`}>
@@ -485,7 +519,13 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
 }
 
 function IndexSection({ memories, siteContent, onOpen, favoriteIds, onToggleFavorite }: { memories: Memory[]; siteContent: SiteContent; onOpen: (memory: Memory) => void; favoriteIds: string[]; onToggleFavorite: (memoryId: string) => void }) {
-  const { data: resonance, isLoading: isResonanceLoading, isError: isResonanceError } = useGetMemoryResonance({ query: { queryKey: getGetMemoryResonanceQueryKey(), retry: false } });
+  const { data: resonance, isLoading: isResonanceLoading, isError: isResonanceError } = useGetMemoryResonance({ query: {
+    queryKey: getGetMemoryResonanceQueryKey(),
+    retry: 2,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 3000),
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  } });
   const totalLikes = resonance?.reduce((total, item) => total + item.count, 0) ?? 0;
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
