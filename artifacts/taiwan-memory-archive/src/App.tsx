@@ -448,8 +448,10 @@ function Hero({ introduction, siteContent, onExplore }: { introduction: string; 
 
 function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite }: { memory: Memory; siteContent: SiteContent; onOpen: (memory: Memory) => void; isFavorite: boolean; onToggleFavorite: (memoryId: string) => void }) {
   const images = getMemoryImages(memory);
-  const { data: resonance, isLoading, isError } = useGetMemoryResonance({ query: {
-    queryKey: getGetMemoryResonanceQueryKey(),
+  const [visitorId] = useState(() => visitorKey());
+  const queryKey = getGetMemoryResonanceQueryKey({ visitorId });
+  const { data: resonance, isLoading, isError } = useGetMemoryResonance({ visitorId }, { query: {
+    queryKey,
     retry: 1,
     retryDelay: 250,
     refetchInterval: 2500,
@@ -458,10 +460,9 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
   const queryClient = useQueryClient();
   const addResonance = useAddMemoryResonance();
   const removeResonance = useRemoveMemoryResonance();
-  const [reacted, setReacted] = useState(() => {
-    try { return localStorage.getItem(`memory-resonance-${memory.id}`) === 'true'; } catch { return false; }
-  });
-  const reactedRef = useRef(reacted);
+  const serverReacted = resonance?.find((item) => item.memoryId === memory.id)?.reactedByVisitor ?? false;
+  const [optimisticReacted, setOptimisticReacted] = useState<boolean | null>(null);
+  const reacted = optimisticReacted ?? serverReacted;
   const reactionLockRef = useRef(false);
   const [isReacting, setIsReacting] = useState(false);
   const count = resonance?.find((item) => item.memoryId === memory.id)?.count ?? 0;
@@ -469,32 +470,29 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
     if (reactionLockRef.current) return;
     reactionLockRef.current = true;
     setIsReacting(true);
-    const queryKey = getGetMemoryResonanceQueryKey();
     const previousCount = queryClient.getQueryData<MemoryResonanceList>(queryKey)?.find((item) => item.memoryId === memory.id)?.count ?? count;
-    const wasReacted = reactedRef.current;
+    const wasReacted = reacted;
     const nextReacted = !wasReacted;
-    const updateCount = (nextCount: number) => queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
+    const updateReaction = (nextCount: number, reactedByVisitor: boolean) => queryClient.setQueryData<MemoryResonanceList>(queryKey, (current = []) => {
       const found = current.some((item) => item.memoryId === memory.id);
       return found
-        ? current.map((item) => item.memoryId === memory.id ? { ...item, count: nextCount } : item)
-        : [...current, { memoryId: memory.id, count: nextCount }];
+        ? current.map((item) => item.memoryId === memory.id ? { ...item, count: nextCount, reactedByVisitor } : item)
+        : [...current, { memoryId: memory.id, count: nextCount, reactedByVisitor }];
     });
-    updateCount(Math.max(0, previousCount + (nextReacted ? 1 : -1)));
-    reactedRef.current = nextReacted;
-    setReacted(nextReacted);
+    updateReaction(Math.max(0, previousCount + (nextReacted ? 1 : -1)), nextReacted);
+    setOptimisticReacted(nextReacted);
     try {
       if (wasReacted) {
         const result = await removeResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
-        updateCount(result.count);
+        updateReaction(result.count, false);
       } else {
         const result = await addResonance.mutateAsync({ memoryId: memory.id, data: { visitorId: visitorKey() } });
-        updateCount(result.count);
+        updateReaction(result.count, true);
       }
-      try { localStorage.setItem(`memory-resonance-${memory.id}`, String(nextReacted)); } catch { /* The API remains the source of the count. */ }
+      setOptimisticReacted(null);
     } catch {
-      updateCount(previousCount);
-      reactedRef.current = wasReacted;
-      setReacted(wasReacted);
+      updateReaction(previousCount, wasReacted);
+      setOptimisticReacted(null);
     } finally {
       reactionLockRef.current = false;
       setIsReacting(false);
@@ -517,8 +515,9 @@ function MemoryCard({ memory, siteContent, onOpen, isFavorite, onToggleFavorite 
 }
 
 function IndexSection({ memories, siteContent, onOpen, favoriteIds, onToggleFavorite }: { memories: Memory[]; siteContent: SiteContent; onOpen: (memory: Memory) => void; favoriteIds: string[]; onToggleFavorite: (memoryId: string) => void }) {
-  const { data: resonance, isLoading: isResonanceLoading, isError: isResonanceError } = useGetMemoryResonance({ query: {
-    queryKey: getGetMemoryResonanceQueryKey(),
+  const [visitorId] = useState(() => visitorKey());
+  const { data: resonance, isLoading: isResonanceLoading, isError: isResonanceError } = useGetMemoryResonance({ visitorId }, { query: {
+    queryKey: getGetMemoryResonanceQueryKey({ visitorId }),
     retry: 1,
     retryDelay: 250,
     refetchInterval: 2500,

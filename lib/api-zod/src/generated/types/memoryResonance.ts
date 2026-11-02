@@ -10,4 +10,5 @@ export interface MemoryResonance {
   memoryId: string;
   /** @minimum 0 */
   count: number;
+  reactedByVisitor: boolean;
 }

@@ -115,6 +115,7 @@ export interface MemoryResonance {
   memoryId: string;
   /** @minimum 0 */
   count: number;
+  reactedByVisitor: boolean;
 }
 
 export type MemoryResonanceList = MemoryResonance[];
@@ -263,4 +264,12 @@ export interface EditorStatus {
   authenticated: boolean;
   owner: boolean;
 }
+
+export type GetMemoryResonanceParams = {
+/**
+ * @minLength 8
+ * @maxLength 80
+ */
+visitorId?: string;
+};
 

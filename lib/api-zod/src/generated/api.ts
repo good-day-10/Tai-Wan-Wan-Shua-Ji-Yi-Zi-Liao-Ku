@@ -571,15 +571,25 @@ export const SaveArchiveCopyResponse = zod.object({
 
 
 /**
- * @summary Get resonance counts for memories
+ * @summary Get memory resonance counts and visitor state
  */
+export const getMemoryResonanceQueryVisitorIdMin = 8;
+export const getMemoryResonanceQueryVisitorIdMax = 80;
+
+
+
+export const GetMemoryResonanceQueryParams = zod.object({
+  "visitorId": zod.coerce.string().min(getMemoryResonanceQueryVisitorIdMin).max(getMemoryResonanceQueryVisitorIdMax).optional()
+})
+
 export const getMemoryResonanceResponseCountMin = 0;
 
 
 
 export const GetMemoryResonanceResponseItem = zod.object({
   "memoryId": zod.string(),
-  "count": zod.number().int().min(getMemoryResonanceResponseCountMin)
+  "count": zod.number().int().min(getMemoryResonanceResponseCountMin),
+  "reactedByVisitor": zod.boolean()
 })
 export const GetMemoryResonanceResponse = zod.array(GetMemoryResonanceResponseItem)
 

@@ -25,6 +25,7 @@ import type {
   EditorStatus,
   EditorUnlockRequest,
   EditorUnlockResponse,
+  GetMemoryResonanceParams,
   HealthStatus,
   MemoryResonanceInput,
   MemoryResonanceList,
@@ -474,20 +475,27 @@ export const useSaveArchiveCopy = <TError = ErrorType<void>,
       return useMutation(getSaveArchiveCopyMutationOptions(options));
     }
 
-export const getGetMemoryResonanceUrl = () => {
+export const getGetMemoryResonanceUrl = (params?: GetMemoryResonanceParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/archive/resonance`
+  return stringifiedParams.length > 0 ? `/api/archive/resonance?${stringifiedParams}` : `/api/archive/resonance`
 }
 
 /**
- * @summary Get resonance counts for memories
+ * @summary Get memory resonance counts and visitor state
  */
-export const getMemoryResonance = async ( options?: Parameters<typeof customFetch>[1]): Promise<MemoryResonanceList> => {
+export const getMemoryResonance = async (params?: GetMemoryResonanceParams, options?: Parameters<typeof customFetch>[1]): Promise<MemoryResonanceList> => {
 
-  return customFetch<MemoryResonanceList>(getGetMemoryResonanceUrl(),
+  return customFetch<MemoryResonanceList>(getGetMemoryResonanceUrl(params),
   {
     ...options,
     method: 'GET'
@@ -500,23 +508,23 @@ export const getMemoryResonance = async ( options?: Parameters<typeof customFetc
 
 
 
-export const getGetMemoryResonanceQueryKey = () => {
+export const getGetMemoryResonanceQueryKey = (params?: GetMemoryResonanceParams,) => {
     return [
-    `/api/archive/resonance`
+    `/api/archive/resonance`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetMemoryResonanceQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryResonance>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMemoryResonanceQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryResonance>>, TError = ErrorType<unknown>>(params?: GetMemoryResonanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMemoryResonanceQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoryResonanceQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryResonance>>> = ({ signal }) => getMemoryResonance({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryResonance>>> = ({ signal }) => getMemoryResonance(params, { signal, ...requestOptions });
 
 
 
@@ -530,15 +538,15 @@ export type GetMemoryResonanceQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get resonance counts for memories
+ * @summary Get memory resonance counts and visitor state
  */
 
 export function useGetMemoryResonance<TData = Awaited<ReturnType<typeof getMemoryResonance>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetMemoryResonanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryResonance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetMemoryResonanceQueryOptions(options)
+  const queryOptions = getGetMemoryResonanceQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

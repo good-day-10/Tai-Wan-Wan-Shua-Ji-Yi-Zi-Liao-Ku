@@ -32,10 +32,18 @@ function editorAllowed(req: Request) {
   return Boolean(userId && sessionId && req.signedCookies?.[editorCookie] === `${userId}:${sessionId}`);
 }
 
-router.get("/archive/resonance", async (_req, res) => {
+router.get("/archive/resonance", async (req, res) => {
+  const visitorId = typeof req.query.visitorId === "string" ? req.query.visitorId : "";
+  if (visitorId && (visitorId.length < 8 || visitorId.length > 80)) {
+    res.status(400).json({ error: "Invalid visitor ID" });
+    return;
+  }
   const rows = await db.select({
     memoryId: archiveReactionsTable.memoryId,
     count: sql<number>`count(*)::int`,
+    reactedByVisitor: visitorId
+      ? sql<boolean>`bool_or(${archiveReactionsTable.visitorId} = ${visitorId})`
+      : sql<boolean>`false`,
   }).from(archiveReactionsTable).groupBy(archiveReactionsTable.memoryId);
   res.json(GetMemoryResonanceResponse.parse(rows));
 });
@@ -68,7 +76,7 @@ router.delete("/archive/resonance/:memoryId", async (req, res) => {
   const [row] = await db.select({ count: sql<number>`count(*)::int` })
     .from(archiveReactionsTable)
     .where(eq(archiveReactionsTable.memoryId, req.params.memoryId));
-  res.json(RemoveMemoryResonanceResponse.parse({ memoryId: req.params.memoryId, count: row?.count ?? 0 }));
+  res.json(RemoveMemoryResonanceResponse.parse({ memoryId: req.params.memoryId, count: row?.count ?? 0, alreadyReacted: false }));
 });
 
 router.post("/archive/submissions", async (req, res) => {

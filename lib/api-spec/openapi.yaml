@@ -105,7 +105,15 @@ paths:
     get:
       operationId: getMemoryResonance
       tags: [archive]
-      summary: Get resonance counts for memories
+      summary: Get memory resonance counts and visitor state
+      parameters:
+        - name: visitorId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 80
       responses:
         "200":
           description: Resonance counts
@@ -607,7 +615,9 @@ components:
         count:
           type: integer
           minimum: 0
-      required: [memoryId, count]
+        reactedByVisitor:
+          type: boolean
+      required: [memoryId, count, reactedByVisitor]
     MemoryResonanceList:
       type: array
       items:

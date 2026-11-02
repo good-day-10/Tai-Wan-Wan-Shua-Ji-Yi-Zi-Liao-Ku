@@ -12,6 +12,7 @@ export * from './customPage';
 export * from './editorStatus';
 export * from './editorUnlockRequest';
 export * from './editorUnlockResponse';
+export * from './getMemoryResonanceParams';
 export * from './healthStatus';
 export * from './memory';
 export * from './memoryResonance';
