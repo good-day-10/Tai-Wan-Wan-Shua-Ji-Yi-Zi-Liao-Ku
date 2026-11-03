@@ -110,27 +110,27 @@ button { cursor: pointer; }
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .16);
+  border: 1px solid rgba(96, 65, 43, .28);
   border-radius: .65rem;
-  background: #050505;
+  background: #d9bd9f;
   isolation: isolate;
 }
 .archive-mark::before {
   position: absolute;
   z-index: 0;
   inset: 0;
-  background: url("/logo-toys.svg?v=1") center / cover no-repeat;
+  background: url("/logo-toys.svg?v=2") center / cover no-repeat;
   content: "";
-  opacity: .3;
+  opacity: .22;
 }
 .archive-mark > span {
   position: relative;
   z-index: 1;
-  color: #fff;
-  font-family: "Ma Shan Zheng", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", "Noto Serif TC", serif;
+  color: #c66b3d;
+  font-family: "ZCOOL XiaoWei", "Noto Serif TC", "Songti TC", "PMingLiU", serif;
   font-size: 1.85rem;
   line-height: 1;
-  text-shadow: 0 1px 3px #000;
+  text-shadow: 0 1px 0 rgba(255, 247, 231, .55);
 }
 .serif { font-family: var(--app-font-serif); }
 .eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .14em; }
