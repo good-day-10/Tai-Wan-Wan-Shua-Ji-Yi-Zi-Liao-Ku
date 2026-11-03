@@ -38,20 +38,20 @@ const SHEET_CONFIG = {
 };
 
 const DEFAULT_STYLES: Record<string, string> = {
-  background: 'hsl(42 43% 96%)',
-  foreground: 'hsl(205 44% 18%)',
-  border: 'hsl(36 24% 83%)',
-  card: 'hsl(42 48% 98%)',
-  primary: 'hsl(186 56% 30%)',
-  'primary-foreground': 'hsl(42 48% 98%)',
-  secondary: 'hsl(19 67% 65%)',
-  'secondary-foreground': 'hsl(205 44% 18%)',
-  muted: 'hsl(39 26% 91%)',
-  'muted-foreground': 'hsl(205 18% 42%)',
-  accent: 'hsl(39 76% 57%)',
-  'accent-foreground': 'hsl(205 44% 18%)',
-  destructive: 'hsl(3 64% 47%)',
-  'destructive-foreground': 'hsl(42 48% 98%)',
+  background: '42 43% 96%',
+  foreground: '205 44% 18%',
+  border: '36 22% 83%',
+  card: '42 48% 98%',
+  primary: '183 58% 31%',
+  'primary-foreground': '42 48% 98%',
+  secondary: '18 75% 66%',
+  'secondary-foreground': '205 44% 18%',
+  muted: '39 26% 91%',
+  'muted-foreground': '205 16% 44%',
+  accent: '39 88% 55%',
+  'accent-foreground': '205 44% 18%',
+  destructive: '3 64% 47%',
+  'destructive-foreground': '42 48% 98%',
   'app-font-sans': '"Noto Sans TC", ui-sans-serif, sans-serif',
   'app-font-serif': '"Noto Serif TC", Georgia, serif',
 };
@@ -294,39 +294,120 @@ async function fetchCsv(url: string): Promise<string> {
 
 function normalizeStyleMap(raw: SheetKeyValueMap): Record<string, string> {
   const out: Record<string, string> = {};
+  const colorKeys = new Set([
+    'background', 'foreground', 'border', 'input', 'ring', 'card', 'card-foreground', 'card-border',
+    'primary', 'primary-foreground', 'secondary', 'secondary-foreground', 'muted',
+    'muted-foreground', 'accent', 'accent-foreground', 'destructive', 'destructive-foreground',
+  ]);
   const mapping: Record<string, string> = {
     background: 'background',
     foreground: 'foreground',
     border: 'border',
+    input_color: 'input',
+    inputcolor: 'input',
+    ring_color: 'ring',
+    ringcolor: 'ring',
     card: 'card',
+    card_foreground: 'card-foreground',
+    cardforeground: 'card-foreground',
+    card_border: 'card-border',
+    cardborder: 'card-border',
     primary_color: 'primary',
-    primaryColor: 'primary',
+    primarycolor: 'primary',
+    primary_foreground: 'primary-foreground',
+    primaryforeground: 'primary-foreground',
     secondary_color: 'secondary',
-    secondaryColor: 'secondary',
+    secondarycolor: 'secondary',
+    secondary_foreground: 'secondary-foreground',
+    secondaryforeground: 'secondary-foreground',
     muted_color: 'muted',
-    mutedColor: 'muted',
+    mutedcolor: 'muted',
+    muted_foreground: 'muted-foreground',
+    mutedforeground: 'muted-foreground',
     accent_color: 'accent',
-    accentColor: 'accent',
+    accentcolor: 'accent',
+    accent_foreground: 'accent-foreground',
+    accentforeground: 'accent-foreground',
     destructive_color: 'destructive',
-    destructiveColor: 'destructive',
+    destructivecolor: 'destructive',
+    destructive_foreground: 'destructive-foreground',
+    destructiveforeground: 'destructive-foreground',
     text_color: 'foreground',
     textColor: 'foreground',
     heading_color: 'foreground',
     headingColor: 'foreground',
     font_family: 'app-font-sans',
-    fontFamily: 'app-font-sans',
+    fontfamily: 'app-font-sans',
     serif_font: 'app-font-serif',
-    serifFont: 'app-font-serif',
+    seriffont: 'app-font-serif',
   };
 
   Object.entries(raw).forEach(([key, value]) => {
     const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_');
     const cssVar = mapping[normalizedKey] ?? normalizedKey;
     if (!cssVar) return;
-    out[cssVar] = value.trim();
+    const colorValue = value.trim();
+    out[cssVar] = colorKeys.has(cssVar) ? normalizeStyleColor(colorValue) : colorValue;
   });
 
   return out;
+}
+
+function normalizeStyleColor(value: string): string {
+  const hexMatch = value.match(/^#([\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i);
+  if (hexMatch) {
+    let hex = hexMatch[1].slice(0, 6);
+    if (hex.length === 3) hex = [...hex].map((part) => `${part}${part}`).join('');
+    const channels = [0, 2, 4].map((index) => parseInt(hex.slice(index, index + 2), 16) / 255);
+    const [r, g, b] = channels;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+    const lightness = (max + min) / 2;
+    let hue = 0;
+    let saturation = 0;
+    if (delta) {
+      saturation = delta / (1 - Math.abs(2 * lightness - 1));
+      if (max === r) hue = ((g - b) / delta) % 6;
+      else if (max === g) hue = (b - r) / delta + 2;
+      else hue = (r - g) / delta + 4;
+      hue = (hue * 60 + 360) % 360;
+    }
+    return `${Math.round(hue)} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
+  }
+
+  const hslMatch = value.match(/^hsla?\((.+)\)$/i);
+  if (hslMatch) {
+    const parts = hslMatch[1].split(/[,\s/]+/).filter(Boolean).slice(0, 3);
+    if (parts.length === 3) return parts.join(' ').replace(/deg/gi, '');
+  }
+
+  const rgbMatch = value.match(/^rgba?\((.+)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(/[,\s/]+/).slice(0, 3);
+    const channels = parts.map((part) => part.endsWith('%')
+      ? Number.parseFloat(part) / 100
+      : Number.parseFloat(part) / 255);
+    if (channels.length === 3 && channels.every(Number.isFinite)) {
+      const [r, g, b] = channels;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+      const lightness = (max + min) / 2;
+      let hue = 0;
+      let saturation = 0;
+      if (delta) {
+        saturation = delta / (1 - Math.abs(2 * lightness - 1));
+        if (max === r) hue = ((g - b) / delta) % 6;
+        else if (max === g) hue = (b - r) / delta + 2;
+        else hue = (r - g) / delta + 4;
+        hue = (hue * 60 + 360) % 360;
+      }
+      return `${Math.round(hue)} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
+    }
+  }
+
+  return value.replace(/,/g, ' ').replace(/deg/gi, '').trim();
 }
 
 function prettyDate(value: string): string {
@@ -630,7 +711,7 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg?v=5`,
   },
   variables: {
-    colorPrimary: '#26747b',
+    colorPrimary: '#24777a',
     colorForeground: '#1b3341',
     colorMutedForeground: '#68747a',
     colorBackground: '#fbf8f1',

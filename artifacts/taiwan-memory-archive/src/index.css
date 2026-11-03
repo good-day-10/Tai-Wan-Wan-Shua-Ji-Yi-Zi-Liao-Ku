@@ -35,19 +35,19 @@
 :root {
   --background: 42 43% 96%;
   --foreground: 205 44% 18%;
-  --border: 36 24% 83%;
-  --input: 36 24% 83%;
-  --ring: 186 56% 33%;
+  --border: 36 22% 83%;
+  --input: 36 22% 83%;
+  --ring: 183 58% 31%;
   --card: 42 48% 98%;
   --card-foreground: 205 44% 18%;
   --card-border: 36 27% 86%;
-  --primary: 186 56% 30%;
+  --primary: 183 58% 31%;
   --primary-foreground: 42 48% 98%;
-  --secondary: 19 67% 65%;
+  --secondary: 18 75% 66%;
   --secondary-foreground: 205 44% 18%;
   --muted: 39 26% 91%;
-  --muted-foreground: 205 18% 42%;
-  --accent: 39 76% 57%;
+  --muted-foreground: 205 16% 44%;
+  --accent: 39 88% 55%;
   --accent-foreground: 205 44% 18%;
   --destructive: 3 64% 47%;
   --destructive-foreground: 42 48% 98%;
@@ -62,17 +62,17 @@
   --foreground: 42 43% 94%;
   --border: 205 27% 24%;
   --input: 205 27% 24%;
-  --ring: 39 76% 57%;
+  --ring: 39 88% 55%;
   --card: 205 38% 16%;
   --card-foreground: 42 43% 94%;
   --card-border: 205 27% 25%;
-  --primary: 39 76% 57%;
+  --primary: 183 58% 40%;
   --primary-foreground: 205 43% 12%;
-  --secondary: 19 67% 65%;
+  --secondary: 18 75% 66%;
   --secondary-foreground: 205 43% 12%;
   --muted: 205 27% 21%;
   --muted-foreground: 205 15% 69%;
-  --accent: 186 56% 43%;
+  --accent: 39 88% 55%;
   --accent-foreground: 42 43% 96%;
   --destructive: 3 64% 58%;
   --destructive-foreground: 42 43% 96%;
@@ -101,6 +101,10 @@ button { cursor: pointer; }
   mix-blend-mode: multiply;
 }
 .masthead { background: hsl(205 44% 18%); color: hsl(42 43% 96%); }
+.masthead a:hover { color: hsl(var(--accent)); }
+[data-sheet-key="hero_title"] span { color: hsl(var(--secondary)) !important; }
+#memories h2 span { color: hsl(var(--primary)) !important; }
+#about h2 span { color: hsl(var(--secondary)) !important; }
 .archive-mark {
   position: relative;
   display: inline-flex;
@@ -203,7 +207,7 @@ button { cursor: pointer; }
 .rich-story p:last-child { margin-bottom: 0; }
 .rich-story ul, .rich-story ol { margin: 0 0 1.25rem 1.25rem; }
 .btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.72rem 1rem; border-radius:999px; background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); font-weight:700; border:1px solid hsl(var(--primary)); transition: transform .2s, background .2s; }
-.btn-primary:hover { transform: translateY(-1px); background: hsl(186 56% 25%); }
+.btn-primary:hover { transform: translateY(-1px); background: hsl(183 58% 25%); }
 .btn-ghost { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; padding:.65rem .9rem; border-radius:999px; color:inherit; font-weight:600; border:1px solid transparent; transition: background .2s; }
 .btn-ghost:hover { background:hsl(var(--muted)); }
 .btn-outline { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; padding:.65rem .9rem; border-radius:999px; color:hsl(var(--foreground)); font-weight:600; border:1px solid hsl(var(--border)); background:hsl(var(--card)); transition: background .2s, border .2s; }
