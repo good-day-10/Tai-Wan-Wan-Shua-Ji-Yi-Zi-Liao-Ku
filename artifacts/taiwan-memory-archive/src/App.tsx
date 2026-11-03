@@ -419,7 +419,7 @@ function AppContent() {
         <header className="masthead relative z-30">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
           <a href={isFavoritesPage ? import.meta.env.BASE_URL : '#top'} className="flex items-center gap-3" data-testid="link-home">
-            <span className="archive-mark" aria-label="玩">玩</span>
+            <span className="archive-mark" aria-label="玩"><span>玩</span></span>
             <span>
               <span className="block text-[10px] font-semibold tracking-[.16em] text-[hsl(var(--accent))]" data-sheet-key="hero_eyebrow">{DEFAULT_CONTENT.hero_eyebrow}</span>
               <span className="block text-base font-bold text-white" data-sheet-key="brand_name">{DEFAULT_CONTENT.brand_name}</span>
@@ -569,7 +569,7 @@ function AppContent() {
           <div className="footer-grid">
             <div>
               <div className="flex items-center gap-3">
-                <span className="archive-mark" aria-label="玩">玩</span>
+                <span className="archive-mark" aria-label="玩"><span>玩</span></span>
                 <div>
                   <p className="eyebrow text-[hsl(var(--accent))]">TAIWAN PLAY MEMORIES</p>
                   <h3 className="text-xl font-bold text-white" data-sheet-key="footer_brand">{DEFAULT_CONTENT.footer_brand}</h3>
@@ -627,7 +627,7 @@ const clerkAppearance = {
   options: {
     logoPlacement: 'inside' as const,
     logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg?v=2`,
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg?v=4`,
   },
   variables: {
     colorPrimary: '#26747b',

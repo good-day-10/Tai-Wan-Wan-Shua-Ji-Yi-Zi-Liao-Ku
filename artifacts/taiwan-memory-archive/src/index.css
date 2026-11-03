@@ -102,19 +102,35 @@ button { cursor: pointer; }
 }
 .masthead { background: hsl(205 44% 18%); color: hsl(42 43% 96%); }
 .archive-mark {
+  position: relative;
   display: inline-flex;
   width: 2.5rem;
   height: 2.5rem;
   flex: 0 0 2.5rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, .18);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .16);
   border-radius: .65rem;
   background: #050505;
+  isolation: isolate;
+}
+.archive-mark::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: url("/logo-toys.svg?v=1") center / cover no-repeat;
+  content: "";
+  opacity: .3;
+}
+.archive-mark > span {
+  position: relative;
+  z-index: 1;
   color: #fff;
   font-family: "Ma Shan Zheng", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", "Noto Serif TC", serif;
-  font-size: 1.9rem;
+  font-size: 1.85rem;
   line-height: 1;
+  text-shadow: 0 1px 3px #000;
 }
 .serif { font-family: var(--app-font-serif); }
 .eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .14em; }
