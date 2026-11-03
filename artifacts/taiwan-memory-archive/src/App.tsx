@@ -3,6 +3,7 @@ import { ClerkProvider, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { Menu, X } from 'lucide-react';
 import { CommunityFeatures } from './community-features';
+import { FocusManagedDialog } from './components/focus-managed-dialog';
 import './index.css';
 
 type SheetKeyValueMap = Record<string, string>;
@@ -415,24 +416,27 @@ function prettyDate(value: string): string {
   return value;
 }
 
-function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
 
   return (
-    <div className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5" role="dialog" aria-modal="true">
+    <FocusManagedDialog
+      labelledBy="login-modal-title"
+      className="detail-backdrop fixed inset-0 z-50 flex items-center justify-center p-5"
+    >
       <div className="modal-panel w-full max-w-md rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
             <p className="eyebrow text-[hsl(var(--primary))]">LOGIN / 登入</p>
-            <h2 className="serif mt-2 text-2xl font-bold">管理入口</h2>
+            <h2 id="login-modal-title" className="serif mt-2 text-2xl font-bold">管理入口</h2>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose}>關閉</button>
+          <button type="button" className="btn-ghost" onClick={onClose} data-testid="button-close-login-modal">關閉</button>
         </div>
 
         <p className="mb-5 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">登入後可上傳故事照片，管理者也能使用編輯入口。</p>
-        <a href={`${import.meta.env.BASE_URL}sign-in`} className="btn-primary flex min-h-12 w-full justify-center">使用帳號登入</a>
+        <a href={`${import.meta.env.BASE_URL}sign-in`} className="btn-primary flex min-h-12 w-full justify-center" data-testid="link-login-from-modal">使用帳號登入</a>
       </div>
-    </div>
+    </FocusManagedDialog>
   );
 }
 
