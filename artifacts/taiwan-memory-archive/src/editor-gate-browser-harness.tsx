@@ -8,7 +8,9 @@ const getHomeLink = () => document.querySelector<HTMLElement>('[data-testid="lin
 function EditorGateBrowserHarness() {
   const [gateOpen, setGateOpen] = useState(false);
   const [entryVisible, setEntryVisible] = useState(true);
-  const isCustomPage = new URLSearchParams(window.location.search).get('view') === 'custom';
+  const view = new URLSearchParams(window.location.search).get('view');
+  const isCustomPage = view === 'custom';
+  const isDraftRecovery = view === 'draft';
 
   const openGate = () => setGateOpen(true);
   const closeGate = () => {
@@ -18,9 +20,13 @@ function EditorGateBrowserHarness() {
   return <main className="min-h-dvh p-6">
     <a href="#top" data-testid="link-home">台灣玩耍記憶資料庫</a>
     <h1 className="mt-8 text-2xl">{isCustomPage ? '自訂主題頁面' : '首頁'}</h1>
-    {entryVisible && <footer className="mt-8">
+    {entryVisible && !isDraftRecovery && <footer className="mt-8">
       <button type="button" onClick={openGate} data-testid="button-footer-editor">進入編輯入口</button>
     </footer>}
+    {isDraftRecovery && <section className="mt-8">
+      <p data-testid="session-change-notice">草稿已保留，重新授權後即可繼續編輯。</p>
+      <button type="button" onClick={openGate} data-testid="button-reauthorize-draft">重新授權並恢復草稿</button>
+    </section>}
     <button type="button" className="mt-8" onClick={() => setEntryVisible(false)} data-testid="button-unmount-entry">移除編輯入口</button>
     {gateOpen && <FocusManagedDialog
       labelledBy="gate-title"

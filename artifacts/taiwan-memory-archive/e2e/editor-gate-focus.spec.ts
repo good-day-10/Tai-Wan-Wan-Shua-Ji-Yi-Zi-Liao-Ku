@@ -14,6 +14,18 @@ for (const pageType of ['home', 'custom'] as const) {
   });
 }
 
+test('draft reauthorization restores focus to its button when the gate closes', async ({ page }) => {
+  await page.goto('/editor-gate-browser-harness.html?view=draft');
+
+  const reauthorizeButton = page.getByTestId('button-reauthorize-draft');
+  await reauthorizeButton.click();
+  await expect(page.getByRole('dialog', { name: '編輯入口' })).toBeVisible();
+  await page.getByTestId('button-close-gate').click();
+
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(reauthorizeButton).toBeFocused();
+});
+
 test('focus returns to the page home link if the editor entry was unmounted', async ({ page }) => {
   await page.goto('/editor-gate-browser-harness.html?view=custom');
   await page.getByTestId('button-footer-editor').click();
